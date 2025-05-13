@@ -5,15 +5,15 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 
@@ -104,6 +104,7 @@ export default function RegisterScreen() {
         name: form.name,
         lastname: form.lastname,
         email: form.email,
+        role: 'paciente',
         phone: form.phone,
         birthdate: form.birthdate,
         curp: form.curp,
