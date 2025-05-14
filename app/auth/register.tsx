@@ -114,7 +114,7 @@ export default function RegisterScreen() {
         createdAt: new Date(),
       });
   
-      router.replace('/(tabs)');
+      router.replace('/');
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {

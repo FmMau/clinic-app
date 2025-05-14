@@ -40,7 +40,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await signIn(email, password);
-      router.replace('/(tabs)');
+      router.replace('/');
     } catch (error: any) {
       console.log('Firebase error:', error);
       let message = 'Error al iniciar sesión';
