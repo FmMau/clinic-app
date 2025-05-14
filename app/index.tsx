@@ -12,9 +12,9 @@ export default function TabsIndexRedirect() {
       if (role === 'paciente') {
         router.replace('/(tabs)/patient');
       } else if (role === 'medico') {
-        router.replace('/(tabs)/doctor');
+        router.replace('/(doctor)/doctor');
       } else if (role === 'admin') {
-        router.replace('/(tabs)/admin');
+        router.replace('/(admin)/admin');
       } else {
         router.replace('/auth/login');
       }

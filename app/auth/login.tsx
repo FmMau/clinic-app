@@ -203,7 +203,7 @@ export default function LoginScreen() {
             <FontAwesome6 name="circle-info" size={24} color="#5A5CFF" />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => Linking.openURL('tel:+521234567890')}>
+          <TouchableOpacity onPress={() => Linking.openURL('tel:+526242623907')}>
             <FontAwesome6 name="phone" size={24} color="#5A5CFF" />
           </TouchableOpacity>
 
