@@ -5,9 +5,13 @@ export default function ProfileLayout() {
     <Stack
       screenOptions={{
         headerShown: true,
+        headerStyle: {
+          backgroundColor: '#5A5CFF', // Replace with your desired background color
+        },
+        headerTintColor: '#333', // Replace with your desired text/icon color
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Mi Perfil' }} />
+      <Stack.Screen name="index" options={{ title: '' }} />
     </Stack>
   );
 }

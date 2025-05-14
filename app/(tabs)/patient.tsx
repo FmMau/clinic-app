@@ -39,24 +39,10 @@ export default function PatientDashboard() {
   }, [uid]);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#fff', padding: 20 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: '#fff', padding: 20, paddingTop: 40 }}>
       <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 16 }}>
         Bienvenida, Paciente
       </Text>
-
-      {/* Botón para ver perfil clínico */}
-      <TouchableOpacity
-        onPress={() => router.push('/profile')}
-        style={{
-          backgroundColor: '#E0E7FF',
-          paddingVertical: 12,
-          borderRadius: 8,
-          alignItems: 'center',
-          marginBottom: 12,
-        }}
-      >
-        <Text style={{ color: '#4F46E5', fontWeight: 'bold' }}>Ver perfil clínico</Text>
-      </TouchableOpacity>
 
       {/* Botón agendar cita */}
       <TouchableOpacity

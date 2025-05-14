@@ -1,5 +1,6 @@
-import { signIn } from '@/lib/firebase/auth';
+import { resetPassword, signIn } from '@/lib/firebase/auth';
 import { FontAwesome6 } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -22,29 +23,25 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    console.log('Intentando iniciar sesión...');
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  
+
     if (!email || !emailRegex.test(email)) {
-      console.log('Correo inválido');
       Alert.alert('Error', 'Ingresa un correo válido');
       return;
     }
-  
+
     if (!password || password.length < 6) {
-      console.log('Contraseña inválida');
       Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
       return;
     }
-  
+
     setLoading(true);
     try {
       await signIn(email, password);
       router.replace('/');
     } catch (error: any) {
-      console.log('Firebase error:', error);
       let message = 'Error al iniciar sesión';
-  
+
       if (error.code === 'auth/user-not-found') {
         message = 'Usuario no registrado';
       } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-login-credentials') {
@@ -52,14 +49,12 @@ export default function LoginScreen() {
       } else if (error.code === 'auth/invalid-email') {
         message = 'Correo inválido';
       }
-      
+
       Alert.alert('Error', message);
     } finally {
       setLoading(false);
     }
   };
-  
-  
 
   return (
     <KeyboardAvoidingView
@@ -89,10 +84,8 @@ export default function LoginScreen() {
             elevation: 4,
           }}
         >
-          <Text
-            style={{ fontSize: 22, fontWeight: 'bold', textAlign: 'center', marginBottom: 24 }}
-          >
-            Acceso
+          <Text style={{ fontSize: 22, fontWeight: 'bold', textAlign: 'center', marginBottom: 24 }}>
+            Iniciar sesión
           </Text>
 
           <TextInput
@@ -129,7 +122,28 @@ export default function LoginScreen() {
           />
 
           <TouchableOpacity
-            onPress={() => Alert.alert('¿Olvidaste tu contraseña?', 'Función por implementar')}
+            onPress={() => {
+              if (!email) {
+                Alert.alert('Error', 'Por favor, ingresa tu correo primero');
+                return;
+              }
+
+              resetPassword(email)
+                .then(() => {
+                  Alert.alert('Listo', 'Se ha enviado un correo para restablecer tu contraseña');
+                })
+                .catch((error: unknown) => {
+                  let message = 'No se pudo enviar el correo';
+
+                  if ((error as { code: string }).code === 'auth/invalid-email') {
+                    message = 'Correo inválido';
+                  } else if ((error as { code: string }).code === 'auth/user-not-found') {
+                    message = 'No existe una cuenta con ese correo';
+                  }
+
+                  Alert.alert('Error', message);
+                });
+            }}
           >
             <Text
               style={{
@@ -142,6 +156,7 @@ export default function LoginScreen() {
               ¿Olvidaste tu contraseña?
             </Text>
           </TouchableOpacity>
+
 
           <Pressable
             onPress={handleLogin}
@@ -158,10 +173,7 @@ export default function LoginScreen() {
             </Text>
           </Pressable>
 
-
-          <TouchableOpacity
-            onPress={() => router.push('/auth/register')} // Ajusta si la ruta es distinta
-          >
+          <TouchableOpacity onPress={() => router.push('/auth/register')}>
             <Text
               style={{
                 marginTop: 20,
@@ -176,7 +188,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Footer con íconos */}
+        {/* Footer con íconos funcionales */}
         <View
           style={{
             flexDirection: 'row',
@@ -187,9 +199,21 @@ export default function LoginScreen() {
             borderColor: '#eee',
           }}
         >
-          <FontAwesome6 name="circle-info" size={24} color="#5A5CFF" />
-          <FontAwesome6 name="phone" size={24} color="#5A5CFF" />
-          <FontAwesome6 name="envelope" size={24} color="#5A5CFF" />
+          <TouchableOpacity onPress={() => router.push('/auth/help')}>
+            <FontAwesome6 name="circle-info" size={24} color="#5A5CFF" />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => Linking.openURL('tel:+521234567890')}>
+            <FontAwesome6 name="phone" size={24} color="#5A5CFF" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() =>
+              Linking.openURL('mailto:soporte@medaccess.com?subject=Ayuda%20con%20el%20acceso')
+            }
+          >
+            <FontAwesome6 name="envelope" size={24} color="#5A5CFF" />
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

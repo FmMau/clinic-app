@@ -127,7 +127,7 @@ export default function RegisterScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: '#fff' }}
     >
-      <ScrollView contentContainerStyle={{ padding: 24 }}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 48}}>
         <View style={{ alignItems: 'center', marginBottom: 24 }}>
           <FontAwesome6 name="user-plus" size={48} color="#5A5CFF" />
           <Text style={{ fontSize: 22, fontWeight: 'bold', marginTop: 8 }}>Registro</Text>

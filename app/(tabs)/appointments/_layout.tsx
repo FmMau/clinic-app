@@ -6,11 +6,14 @@ export default function AppointmentsLayout() {
       screenOptions={{
         headerShown: true,
         animation: 'slide_from_right',
+        headerStyle: {
+            backgroundColor: '#5A5CFF', // Replace with your desired background color
+          },
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Mis Citas' }} />
-      <Stack.Screen name="create" options={{ title: 'Nueva Cita' }} />
-      <Stack.Screen name="[id]" options={{ title: 'Detalle de Cita' }} />
+      <Stack.Screen name="index" options={{ title: '' }} />
+      <Stack.Screen name="create" options={{ title: '' }} />
+      <Stack.Screen name="[id]" options={{ title: '' }} />
     </Stack>
   );
 }
