@@ -9,6 +9,7 @@ export default function AppointmentsLayout() {
         headerStyle: {
             backgroundColor: '#5A5CFF', // Replace with your desired background color
           },
+        headerTintColor: '#FFFFFF', // Set the back button color to white
       }}
     >
       <Stack.Screen name="index" options={{ title: '' }} />

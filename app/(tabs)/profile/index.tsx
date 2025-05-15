@@ -118,7 +118,7 @@ export default function PatientProfile() {
         editable={editing}
       />
       <EditableField
-        label="CURP / ID"
+        label="CURP"
         value={data.curp}
         onChange={(val) => setData({ ...data, curp: val })}
         editable={editing}

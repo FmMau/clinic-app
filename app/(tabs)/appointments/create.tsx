@@ -4,12 +4,12 @@ import { useRouter } from 'expo-router';
 import { addDoc, collection } from 'firebase/firestore';
 import { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    Text,
-    TextInput,
-    TouchableOpacity
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Text,
+  TextInput,
+  TouchableOpacity
 } from 'react-native';
 
 export default function CreateAppointment() {
@@ -22,6 +22,12 @@ export default function CreateAppointment() {
   const handleSubmit = async () => {
     if (!date || !reason.trim()) {
       Alert.alert('Error', 'Por favor selecciona una fecha y escribe el motivo.');
+      return;
+    }
+
+    const now = new Date();
+    if (date < now) {
+      Alert.alert('Error', 'La fecha debe ser futura.');
       return;
     }
 
@@ -40,7 +46,7 @@ export default function CreateAppointment() {
         status: 'pendiente',
       });
       Alert.alert('Éxito', 'Cita agendada correctamente.');
-      router.replace('/(tabs)/patient');
+      router.replace('/(tabs)/appointments');
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {

@@ -1,6 +1,12 @@
 import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { useRouter } from 'expo-router';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import {
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+} from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
@@ -15,27 +21,50 @@ export default function PatientDashboard() {
   useEffect(() => {
     if (!uid) return;
 
-    const fetchData = async () => {
-      // 📅 Citas
-      const aSnap = await getDocs(
-        query(collection(db, 'appointments'), where('patientId', '==', uid))
-      );
-      setAppointments(aSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    // 📅 Escuchar citas
+    const unsubscribeAppointments = onSnapshot(
+      query(
+        collection(db, 'appointments'),
+        where('patientId', '==', uid),
+        orderBy('date', 'desc')
+      ),
+      (snapshot) => {
+        const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setAppointments(data.slice(0, 2));
+      }
+    );
 
-      // 🧬 Historial
-      const rSnap = await getDocs(
-        query(collection(db, 'medicalRecords'), where('patientId', '==', uid))
-      );
-      setRecords(rSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    // 🧬 Escuchar historial
+    const unsubscribeRecords = onSnapshot(
+      query(
+        collection(db, 'medicalRecords'),
+        where('patientId', '==', uid),
+        orderBy('date', 'desc')
+      ),
+      (snapshot) => {
+        const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setRecords(data.slice(0, 2));
+      }
+    );
 
-      // 💳 Pagos
-      const pSnap = await getDocs(
-        query(collection(db, 'payments'), where('patientId', '==', uid))
-      );
-      setPayments(pSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    // 💳 Escuchar pagos
+    const unsubscribePayments = onSnapshot(
+      query(
+        collection(db, 'payments'),
+        where('patientId', '==', uid),
+        orderBy('date', 'desc')
+      ),
+      (snapshot) => {
+        const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setPayments(data.slice(0, 2));
+      }
+    );
+
+    return () => {
+      unsubscribeAppointments();
+      unsubscribeRecords();
+      unsubscribePayments();
     };
-
-    fetchData();
   }, [uid]);
 
   return (
@@ -59,7 +88,7 @@ export default function PatientDashboard() {
       </TouchableOpacity>
 
       {/* Citas */}
-      <Section title="Citas Próximas">
+      <Section title="Próximas Citas">
         {appointments.map((a) => (
           <TouchableOpacity key={a.id} onPress={() => router.push(`/appointments/${a.id}`)}>
             <Card title={a.doctor || 'Consulta'} subtitle={formatDate(a.date)} />
