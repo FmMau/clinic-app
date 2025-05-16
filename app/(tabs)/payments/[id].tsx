@@ -1,6 +1,6 @@
 import { db } from '@/lib/firebase/firebaseConfig';
 import { useLocalSearchParams } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 
@@ -10,20 +10,27 @@ export default function PaymentDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchPayment = async () => {
-      if (!id || typeof id !== 'string') return;
+    if (!id || typeof id !== 'string') return;
 
-      const docRef = doc(db, 'payments', id);
-      const docSnap = await getDoc(docRef);
+    const docRef = doc(db, 'payments', id);
 
-      if (docSnap.exists()) {
-        setPayment(docSnap.data());
+    const unsubscribe = onSnapshot(
+      docRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setPayment(docSnap.data());
+        } else {
+          setPayment(null);
+        }
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error al obtener detalle del pago en tiempo real:', error);
+        setLoading(false);
       }
+    );
 
-      setLoading(false);
-    };
-
-    fetchPayment();
+    return () => unsubscribe();
   }, [id]);
 
   if (loading) return <Text style={{ padding: 20 }}>Cargando...</Text>;
@@ -52,9 +59,10 @@ export default function PaymentDetail() {
 
 function formatDate(value: string | { seconds: number }) {
   try {
-    const date = typeof value === 'string'
-      ? new Date(value)
-      : new Date(value.seconds * 1000);
+    const date =
+      typeof value === 'string'
+        ? new Date(value)
+        : new Date(value.seconds * 1000);
 
     return date.toLocaleDateString('es-MX', {
       year: 'numeric',

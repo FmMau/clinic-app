@@ -12,9 +12,9 @@ export default function AppointmentsLayout() {
         headerTintColor: '#FFFFFF', // Set the back button color to white
       }}
     >
-      <Stack.Screen name="index" options={{ title: '' }} />
-      <Stack.Screen name="create" options={{ title: '' }} />
-      <Stack.Screen name="[id]" options={{ title: '' }} />
+      <Stack.Screen name="index" options={{ title: 'Citas' }} />
+      <Stack.Screen name="create" options={{ title: 'Agendar cita' }} />
+      <Stack.Screen name="[id]" options={{ title: 'Detalles' }} />
     </Stack>
   );
 }
