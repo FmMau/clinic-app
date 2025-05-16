@@ -1,14 +1,23 @@
 import { auth, db } from '@/lib/firebase/firebaseConfig';
-import { FontAwesome6 } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {
-    collection, deleteDoc, doc,
-    onSnapshot,
-    orderBy,
-    query, where
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 export default function AllAppointments() {
   const router = useRouter();
@@ -51,12 +60,11 @@ export default function AllAppointments() {
       },
     ]);
   };
-  
 
   return (
     <ScrollView
-    style={{ flex: 1, backgroundColor: '#fff', paddingHorizontal: 24 }}
-    contentContainerStyle={{ paddingTop: 24, paddingBottom: 80 }}
+      style={{ flex: 1, backgroundColor: '#fff', paddingHorizontal: 24 }}
+      contentContainerStyle={{ paddingTop: 24, paddingBottom: 80 }}
     >
       <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 20 }}>Próximas Citas</Text>
 
@@ -93,9 +101,9 @@ export default function AllAppointments() {
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-              <FontAwesome6
-                name="calendar-days"
-                size={16}
+              <Ionicons
+                name="calendar-outline"
+                size={18}
                 color="#5A5CFF"
                 style={{ marginRight: 8 }}
               />
@@ -115,8 +123,11 @@ export default function AllAppointments() {
                   paddingVertical: 8,
                   paddingHorizontal: 16,
                   borderRadius: 6,
+                  flexDirection: 'row',
+                  alignItems: 'center',
                 }}
               >
+                <Ionicons name="create-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
                 <Text style={{ color: '#fff', fontWeight: 'bold' }}>Reagendar</Text>
               </TouchableOpacity>
 
@@ -128,8 +139,11 @@ export default function AllAppointments() {
                   paddingVertical: 8,
                   paddingHorizontal: 16,
                   borderRadius: 6,
+                  flexDirection: 'row',
+                  alignItems: 'center',
                 }}
               >
+                <Ionicons name="trash-outline" size={16} color="#5A5CFF" style={{ marginRight: 6 }} />
                 <Text style={{ color: '#5A5CFF', fontWeight: 'bold' }}>Cancelar</Text>
               </TouchableOpacity>
             </View>

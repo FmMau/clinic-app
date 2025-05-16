@@ -1,4 +1,5 @@
 import { auth, db } from '@/lib/firebase/firebaseConfig';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {
   collection,
@@ -21,7 +22,6 @@ export default function PatientDashboard() {
   useEffect(() => {
     if (!uid) return;
 
-    // 📅 Escuchar citas
     const unsubscribeAppointments = onSnapshot(
       query(
         collection(db, 'appointments'),
@@ -34,7 +34,6 @@ export default function PatientDashboard() {
       }
     );
 
-    // 🧬 Escuchar historial
     const unsubscribeRecords = onSnapshot(
       query(
         collection(db, 'medicalRecords'),
@@ -47,7 +46,6 @@ export default function PatientDashboard() {
       }
     );
 
-    // 💳 Escuchar pagos
     const unsubscribePayments = onSnapshot(
       query(
         collection(db, 'payments'),
@@ -73,7 +71,6 @@ export default function PatientDashboard() {
         Bienvenida, Paciente
       </Text>
 
-      {/* Botón agendar cita */}
       <TouchableOpacity
         onPress={() => router.push('/appointments/create')}
         style={{
@@ -82,13 +79,15 @@ export default function PatientDashboard() {
           borderRadius: 8,
           alignItems: 'center',
           marginBottom: 20,
+          flexDirection: 'row',
+          justifyContent: 'center',
         }}
       >
+        <Ionicons name="add-circle-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
         <Text style={{ color: '#fff', fontWeight: 'bold' }}>Agendar nueva cita</Text>
       </TouchableOpacity>
 
-      {/* Citas */}
-      <Section title="Próximas Citas">
+      <Section icon="calendar-outline" title="Próximas Citas">
         {appointments.map((a) => (
           <TouchableOpacity key={a.id} onPress={() => router.push(`/appointments/${a.id}`)}>
             <Card title={a.doctor || 'Consulta'} subtitle={formatDate(a.date)} />
@@ -96,8 +95,7 @@ export default function PatientDashboard() {
         ))}
       </Section>
 
-      {/* Historial clínico */}
-      <Section title="Historial Clínico">
+      <Section icon="medkit-outline" title="Historial Clínico">
         {records.map((r) => (
           <TouchableOpacity key={r.id} onPress={() => router.push(`/records/${r.id}`)}>
             <Card title={r.title} subtitle={`Resultado: ${r.result}`} />
@@ -105,8 +103,7 @@ export default function PatientDashboard() {
         ))}
       </Section>
 
-      {/* Pagos realizados */}
-      <Section title="Pagos Realizados">
+      <Section icon="card-outline" title="Pagos Realizados">
         {payments.map((p) => (
           <TouchableOpacity key={p.id} onPress={() => router.push(`/payments/${p.id}`)}>
             <Card title={p.concept} subtitle={`Monto: $${p.amount}`} />
@@ -117,10 +114,21 @@ export default function PatientDashboard() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  icon,
+  title,
+  children,
+}: {
+  icon: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <View style={{ marginBottom: 24 }}>
-      <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>{title}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <Ionicons name={icon as any} size={20} color="#5A5CFF" style={{ marginRight: 8 }} />
+        <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{title}</Text>
+      </View>
       {children}
     </View>
   );
@@ -153,5 +161,7 @@ function formatDate(iso: string) {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }

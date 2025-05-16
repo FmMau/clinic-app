@@ -1,4 +1,5 @@
 import { auth, db } from '@/lib/firebase/firebaseConfig';
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { addDoc, collection } from 'firebase/firestore';
@@ -9,7 +10,8 @@ import {
   Platform,
   Text,
   TextInput,
-  TouchableOpacity
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 export default function CreateAppointment() {
@@ -63,6 +65,7 @@ export default function CreateAppointment() {
         Agendar nueva cita
       </Text>
 
+      {/* Fecha */}
       <Text style={{ marginBottom: 8 }}>Fecha</Text>
       <TouchableOpacity
         onPress={() => setShowDatePicker(true)}
@@ -73,8 +76,16 @@ export default function CreateAppointment() {
           borderWidth: 1,
           borderColor: '#E0E0E0',
           marginBottom: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
         }}
       >
+        <Ionicons
+          name="calendar-outline"
+          size={20}
+          color="#5A5CFF"
+          style={{ marginRight: 8 }}
+        />
         <Text style={{ color: date ? '#000' : '#999' }}>
           {date ? date.toLocaleDateString('es-MX') : 'Selecciona una fecha'}
         </Text>
@@ -95,22 +106,35 @@ export default function CreateAppointment() {
         />
       )}
 
+      {/* Motivo */}
       <Text style={{ marginBottom: 8 }}>Motivo / Tipo de consulta</Text>
-      <TextInput
-        value={reason}
-        onChangeText={setReason}
-        placeholder="Ej: Consulta general"
-        placeholderTextColor="#999"
+      <View
         style={{
+          flexDirection: 'row',
+          alignItems: 'center',
           backgroundColor: '#F5F5F5',
           borderRadius: 8,
-          padding: 12,
           borderWidth: 1,
           borderColor: '#E0E0E0',
           marginBottom: 24,
+          paddingHorizontal: 12,
         }}
-      />
+      >
+        <Ionicons name="document-text-outline" size={20} color="#5A5CFF" style={{ marginRight: 8 }} />
+        <TextInput
+          value={reason}
+          onChangeText={setReason}
+          placeholder="Ej: Consulta general"
+          placeholderTextColor="#999"
+          style={{
+            flex: 1,
+            height: 48,
+            color: '#000',
+          }}
+        />
+      </View>
 
+      {/* Botón */}
       <TouchableOpacity
         onPress={handleSubmit}
         disabled={loading}
@@ -119,8 +143,16 @@ export default function CreateAppointment() {
           padding: 14,
           borderRadius: 8,
           alignItems: 'center',
+          flexDirection: 'row',
+          justifyContent: 'center',
         }}
       >
+        <Ionicons
+          name="checkmark-outline"
+          size={20}
+          color="#fff"
+          style={{ marginRight: 8 }}
+        />
         <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
           {loading ? 'Agendando...' : 'Confirmar cita'}
         </Text>
