@@ -62,14 +62,6 @@ export default function AppointmentsLayout() {
         name="create"
         options={{
           title: 'Agendar cita',
-          headerRight: () => (
-            <TouchableOpacity
-              style={{ marginRight: 16 }}
-              onPress={() => router.replace('/appointments')}
-            >
-              <Ionicons name="calendar-outline" size={22} color="#fff" />
-            </TouchableOpacity>
-          ),
         }}
       />
 
