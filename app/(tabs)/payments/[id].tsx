@@ -1,4 +1,5 @@
 import { db } from '@/lib/firebase/firebaseConfig';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
@@ -42,17 +43,21 @@ export default function PaymentDetail() {
         Detalle del pago
       </Text>
 
-      <Text style={{ marginBottom: 8 }}>💳 Concepto: {payment.concept}</Text>
-      <Text style={{ marginBottom: 8 }}>💰 Monto: ${payment.amount}</Text>
-      <Text style={{ marginBottom: 8 }}>
-        🗓️ Fecha: {formatDate(payment.date || payment.createdAt)}
-      </Text>
-      <Text style={{ marginBottom: 8 }}>
-        🧾 Método: {payment.method || 'No especificado'}
-      </Text>
-      <Text style={{ marginBottom: 8 }}>
-        📌 Estado: {payment.status || 'pagado'}
-      </Text>
+      <IconRow icon="card-outline" label="Concepto" value={payment.concept} />
+      <IconRow icon="cash-outline" label="Monto" value={`$${payment.amount}`} />
+      <IconRow icon="calendar-outline" label="Fecha" value={formatDate(payment.date || payment.createdAt)} />
+      <IconRow icon="document-text-outline" label="Método" value={payment.method || 'No especificado'} />
+      <IconRow icon="checkmark-circle-outline" label="Estado" value={payment.status || 'pagado'} />
+    </View>
+  );
+}
+
+function IconRow({ icon, label, value }: { icon: any; label: string; value: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+      <Ionicons name={icon} size={18} color="#4F46E5" style={{ marginRight: 8 }} />
+      <Text style={{ fontWeight: 'bold' }}>{label}:</Text>
+      <Text style={{ marginLeft: 4 }}>{value}</Text>
     </View>
   );
 }

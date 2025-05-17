@@ -1,10 +1,11 @@
 import { useAuth } from '@/hooks/useAuth';
 import { db } from '@/lib/firebase/firebaseConfig';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, View } from 'react-native';
+import { ActivityIndicator, Alert, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 export default function PayScreen() {
@@ -36,12 +37,6 @@ export default function PayScreen() {
           return;
         }
 
-        console.log('Llamando función con:', {
-          amount,
-          paymentId: id,
-          patientId: user.uid,
-        });
-
         const functions = getFunctions(undefined, 'us-central1');
         const createCheckout = httpsCallable(functions, 'createCheckoutSession');
         const res: any = await createCheckout({
@@ -50,7 +45,6 @@ export default function PayScreen() {
           patientId: user.uid,
         });
 
-        console.log('Respuesta Stripe:', res.data);
         setCheckoutUrl(res.data.url);
       } catch (error: any) {
         console.error('Error al crear sesión de pago:', error.message || error);
@@ -67,7 +61,9 @@ export default function PayScreen() {
   if (loading || !checkoutUrl) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
+        <Ionicons name="card-outline" size={42} color="#5A5CFF" />
+        <ActivityIndicator size="large" style={{ marginTop: 16 }} />
+        <Text style={{ marginTop: 10 }}>Generando sesión de pago...</Text>
       </View>
     );
   }

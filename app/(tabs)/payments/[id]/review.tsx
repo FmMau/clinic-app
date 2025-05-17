@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase/firebaseConfig';
-import { FontAwesome } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
@@ -66,8 +66,8 @@ export default function PaymentAndReview() {
 
   const renderStar = (index: number) => (
     <TouchableOpacity key={index} onPress={() => setRating(index + 1)}>
-      <FontAwesome
-        name={index < rating ? 'star' : 'star-o'}
+      <Ionicons
+        name={index < rating ? 'star' : 'star-outline'}
         size={32}
         color={index < rating ? '#4F46E5' : '#ccc'}
       />
@@ -100,7 +100,6 @@ export default function PaymentAndReview() {
         <Text style={{ fontSize: 18 }}>${amount.toFixed(2)}</Text>
       </View>
 
-
       <Text style={{ fontWeight: 'bold', marginVertical: 16 }}>
         Calificación del médico
       </Text>
@@ -131,8 +130,11 @@ export default function PaymentAndReview() {
           padding: 16,
           borderRadius: 10,
           alignItems: 'center',
+          flexDirection: 'row',
+          justifyContent: 'center',
         }}
       >
+        <Ionicons name="checkmark-outline" size={20} color="#fff" style={{ marginRight: 6 }} />
         <Text style={{ color: 'white', fontWeight: 'bold' }}>Enviar</Text>
       </TouchableOpacity>
     </View>

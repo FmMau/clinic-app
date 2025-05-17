@@ -1,20 +1,21 @@
 import { useAuth } from '@/hooks/useAuth';
 import { db } from '@/lib/firebase/firebaseConfig';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {
-    collection,
-    onSnapshot,
-    orderBy,
-    query,
-    where,
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function PaymentsIndex() {
@@ -84,66 +85,98 @@ export default function PaymentsIndex() {
       data={payments}
       keyExtractor={(item) => item.id}
       contentContainerStyle={{ padding: 16 }}
-      renderItem={({ item }) => (
-        <TouchableOpacity
-          onPress={() => handleNavigation(item)}
-          style={{
-            padding: 16,
-            marginBottom: 12,
-            backgroundColor: '#fff',
-            borderRadius: 12,
-            shadowColor: '#000',
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-        >
-          <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 4 }}>
-            {item.concept || 'Pago'}
-          </Text>
+      renderItem={({ item }) => {
+        const isPending = item.status === 'pendiente';
+        const isPaid = item.status === 'pagado';
+        const isRated = !!item.rating;
 
-          <Text style={{ marginBottom: 4 }}>
-            💰 <Text style={{ fontWeight: 'bold' }}>${item.amount}</Text>
-          </Text>
+        let actionText = 'Ver Detalles';
+        let statusText = 'Pagado';
+        let statusColor = '#27ae60';
+        let iconName: keyof typeof Ionicons.glyphMap = 'checkmark-done-circle-outline';
 
-          <Text style={{ marginBottom: 4 }}>
-            🗓️ {formatDate(item.date || item.createdAt)}
-          </Text>
+        if (isPending) {
+          actionText = 'Pagar Ahora';
+          statusText = 'Pendiente';
+          statusColor = '#e67e22';
+          iconName = 'time-outline';
+        } else if (isPaid && !isRated) {
+          actionText = 'Calificar ahora';
+          statusText = 'Calificar';
+          statusColor = '#27ae60';
+          iconName = 'star-outline';
+        }
 
-          <Text style={{ marginBottom: 4 }}>
-            🧾 Método: {item.method || 'No especificado'}
-          </Text>
-
-          <Text
+        return (
+          <View
             style={{
-              color: item.status === 'pendiente' ? '#e67e22' : '#27ae60',
+              backgroundColor: '#fff',
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 16,
+              shadowColor: '#000',
+              shadowOpacity: 0.1,
+              shadowRadius: 6,
+              elevation: 3,
             }}
           >
-            📌 Estado: {item.status || 'pagado'}
-          </Text>
+            {/* Título y Fecha */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="card-outline" size={18} color="#5A5CFF" style={{ marginRight: 6 }} />
+                <Text style={{ fontWeight: 'bold', fontSize: 16 }}>
+                  {item.concept || 'Servicio'}
+                </Text>
+              </View>
+              <Text style={{ color: '#999', fontSize: 12 }}>
+                {formatDateShort(item.date || item.createdAt)}
+              </Text>
+            </View>
 
-          {item.status === 'pendiente' && (
-            <Text
-              style={{ marginTop: 6, color: '#4F46E5', fontWeight: 'bold' }}
+            {/* Monto y Estado */}
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginTop: 8,
+                marginBottom: 12,
+              }}
             >
-              👉 Toca para pagar
-            </Text>
-          )}
+              <Text style={{ fontSize: 16, fontWeight: '600' }}>${item.amount}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name={iconName} size={16} color={statusColor} style={{ marginRight: 4 }} />
+                <Text style={{ color: statusColor, fontSize: 14 }}>{statusText}</Text>
+              </View>
+            </View>
 
-          {item.status === 'pagado' && !item.rating && (
-            <Text
-              style={{ marginTop: 6, color: '#f39c12', fontWeight: 'bold' }}
+            {/* Botón */}
+            <TouchableOpacity
+              onPress={() => handleNavigation(item)}
+              style={{
+                backgroundColor: '#4F46E5',
+                paddingVertical: 10,
+                borderRadius: 8,
+              }}
             >
-              ⭐ Califica este servicio
-            </Text>
-          )}
-        </TouchableOpacity>
-      )}
+              <Text
+                style={{
+                  color: 'white',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                }}
+              >
+                {actionText}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        );
+      }}
     />
   );
 }
 
-function formatDate(value: string | { seconds: number }) {
+function formatDateShort(value: string | { seconds: number }) {
   try {
     const date =
       typeof value === 'string'
@@ -151,9 +184,9 @@ function formatDate(value: string | { seconds: number }) {
         : new Date(value.seconds * 1000);
 
     return date.toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: 'short',
       year: 'numeric',
-      month: 'long',
-      day: 'numeric',
     });
   } catch {
     return 'Fecha desconocida';
