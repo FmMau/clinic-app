@@ -1,8 +1,15 @@
 import { db } from '@/lib/firebase/firebaseConfig';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 export default function RecordDetail() {
   const { id } = useLocalSearchParams();
@@ -32,33 +39,35 @@ export default function RecordDetail() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
-      <Text style={styles.header}>Detalle del Récord Médico</Text>
+      <Text style={styles.header}>
+        <Ionicons name="document-text-outline" size={20} color="#4F46E5" /> Detalle del Récord Médico
+      </Text>
 
-      <Section title="Información del Paciente">
+      <Section icon="person-outline" title="Información del Paciente">
         <Info label="Nombre" value={record.patientName || 'N/A'} />
         <Info label="Fecha de nacimiento" value={record.patientBirthdate || 'N/A'} />
         <Info label="Fecha del registro" value={formatDate(record.date || record.createdAt)} />
       </Section>
 
-      <Section title="Médico Responsable">
+      <Section icon="medkit-outline" title="Médico Responsable">
         <Info label="Nombre" value={record.doctor || 'No especificado'} />
         <Info label="Especialidad" value={record.specialty || 'General'} />
       </Section>
 
-      <Section title="Diagnóstico">
+      <Section icon="pulse-outline" title="Diagnóstico">
         <Info label="Condición" value={record.condition || 'No especificado'} />
         <Info label="Gravedad" value={record.severity || 'No especificado'} />
       </Section>
 
       {record.medication && (
-        <Section title="Prescripción">
+        <Section icon="flask-outline" title="Prescripción">
           <Info label="Medicamento" value={record.medication} />
           <Info label="Dosis" value={record.dosage || 'N/A'} />
         </Section>
       )}
 
       {record.notes && (
-        <Section title="Notas Adicionales">
+        <Section icon="chatbubble-ellipses-outline" title="Notas Adicionales">
           <Text style={{ color: '#333', lineHeight: 20 }}>{record.notes}</Text>
         </Section>
       )}
@@ -67,16 +76,28 @@ export default function RecordDetail() {
         onPress={() => router.push('/appointments/create')}
         style={styles.button}
       >
+        <Ionicons name="calendar-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
         <Text style={styles.buttonText}>Agendar Seguimiento</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: any;
+  children: React.ReactNode;
+}) {
   return (
     <View style={{ marginBottom: 20 }}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+        <Ionicons name={icon} size={16} color="#4F46E5" style={{ marginRight: 6 }} />
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
       <View style={styles.card}>{children}</View>
     </View>
   );
@@ -93,9 +114,10 @@ function Info({ label, value }: { label: string; value: string }) {
 
 function formatDate(value: string | { seconds: number }) {
   try {
-    const date = typeof value === 'string'
-      ? new Date(value)
-      : new Date(value.seconds * 1000);
+    const date =
+      typeof value === 'string'
+        ? new Date(value)
+        : new Date(value.seconds * 1000);
 
     return date.toLocaleDateString('es-MX', {
       year: 'numeric',
@@ -110,15 +132,16 @@ function formatDate(value: string | { seconds: number }) {
 const styles = StyleSheet.create({
   header: {
     fontSize: 20,
-    fontWeight: 'bold' as const,
-    fontStyle: 'italic' as const,
+    fontWeight: 'bold',
+    fontStyle: 'italic',
     marginBottom: 20,
+    color: '#333',
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold' as const,
-    fontStyle: 'italic' as const,
-    marginBottom: 8,
+    fontWeight: 'bold',
+    fontStyle: 'italic',
+    color: '#333',
   },
   card: {
     backgroundColor: '#fff',
@@ -134,10 +157,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     marginTop: 24,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   buttonText: {
     textAlign: 'center',
     color: 'white',
-    fontWeight: 'bold' as const,
+    fontWeight: 'bold',
+    fontSize: 15,
   },
 });
