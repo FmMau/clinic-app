@@ -4,7 +4,7 @@ import { Stack, useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { TouchableOpacity } from 'react-native';
 
-export default function ProfileLayout() {
+export default function PatientLayout() {
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -20,13 +20,9 @@ export default function ProfileLayout() {
     <Stack
       screenOptions={{
         headerShown: true,
-        headerStyle: {
-          backgroundColor: '#5A5CFF',
-        },
-        headerTintColor: '#FFFFFF',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        headerStyle: { backgroundColor: '#5A5CFF' },
+        headerTintColor: '#fff',
+        headerTitleStyle: { fontWeight: 'bold' },
       }}
     >
       <Stack.Screen
@@ -38,6 +34,12 @@ export default function ProfileLayout() {
               <Ionicons name="log-out-outline" size={24} color="#fff" />
             </TouchableOpacity>
           ),
+        }}
+      />
+      <Stack.Screen
+        name="edit"
+        options={{
+          title: 'Editar perfil',
         }}
       />
     </Stack>
