@@ -1,9 +1,21 @@
-import { signIn } from '@/lib/firebase/auth';
+import { resetPassword, signIn } from '@/lib/firebase/auth';
 import { FontAwesome6 } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, Text, TextInput, View } from 'react-native';
-
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -11,77 +23,204 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const handleLogin = async () => {
+    if (!email.trim() || !emailRegex.test(email.trim())) {
+      Alert.alert('Error', 'Ingresa un correo válido');
+      return;
+    }
+
+    if (!password || password.trim().length < 6) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
     setLoading(true);
     try {
-      await signIn(email, password);
-      router.replace('/(tabs)');
+      await signIn(email.trim(), password.trim());
+      router.replace('/');
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      let message = 'Error al iniciar sesión';
+
+      if (error.code === 'auth/user-not-found') {
+        message = 'Usuario no registrado';
+      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-login-credentials') {
+        message = 'Correo o contraseña incorrectos';
+      } else if (error.code === 'auth/invalid-email') {
+        message = 'Correo inválido';
+      }
+
+      Alert.alert('Error', message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#F5F9FF' }}>
-        <View style={{ alignItems: 'center', marginBottom: 40 }}>
-        <FontAwesome6 name="user-doctor" size={64} color="#2F80ED" />
-        <Text style={{ fontSize: 24, fontWeight: 'bold', marginTop: 16 }}>
-            Bienvenido Doctor
-        </Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1, backgroundColor: '#fff' }}
+    >
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between' }}>
+        <View style={{ alignItems: 'center', marginTop: 60 }}>
+          <Image
+            source={require('@/assets/medaccess-logo.png')}
+            style={{ width: 120, height: 40, resizeMode: 'contain' }}
+          />
         </View>
 
-      <Text style={{ fontSize: 16, marginBottom: 4 }}>Correo electrónico</Text>
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        placeholder="doctor@clinica.com"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        style={{
-          backgroundColor: 'white',
-          borderRadius: 10,
-          padding: 12,
-          marginBottom: 16,
-          borderWidth: 1,
-          borderColor: '#ccc',
-        }}
-      />
+        <View
+          style={{
+            backgroundColor: '#fff',
+            marginHorizontal: 24,
+            borderRadius: 12,
+            padding: 24,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 6,
+            elevation: 4,
+          }}
+        >
+          <Text style={{ fontSize: 22, fontWeight: 'bold', textAlign: 'center', marginBottom: 24 }}>
+            Iniciar sesión
+          </Text>
 
-      <Text style={{ fontSize: 16, marginBottom: 4 }}>Contraseña</Text>
-      <TextInput
-        value={password}
-        onChangeText={setPassword}
-        placeholder="••••••••"
-        secureTextEntry
-        style={{
-          backgroundColor: 'white',
-          borderRadius: 10,
-          padding: 12,
-          marginBottom: 24,
-          borderWidth: 1,
-          borderColor: '#ccc',
-        }}
-      />
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="Correo electrónico"
+            placeholderTextColor="#999"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+            textContentType="emailAddress"
+            style={{
+              backgroundColor: '#F5F5F5',
+              borderRadius: 8,
+              padding: 12,
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: '#E0E0E0',
+            }}
+          />
 
-      <Pressable
-        onPress={handleLogin}
-        style={{
-          backgroundColor: '#2F80ED',
-          padding: 14,
-          borderRadius: 10,
-          alignItems: 'center',
-        }}
-      >
-        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
-          {loading ? 'Ingresando...' : 'Iniciar sesión'}
-        </Text>
-      </Pressable>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Contraseña"
+            placeholderTextColor="#999"
+            secureTextEntry
+            autoComplete="password"
+            textContentType="password"
+            style={{
+              backgroundColor: '#F5F5F5',
+              borderRadius: 8,
+              padding: 12,
+              marginBottom: 8,
+              borderWidth: 1,
+              borderColor: '#E0E0E0',
+            }}
+          />
 
-      <Text style={{ marginTop: 20, textAlign: 'center', color: '#777' }}>
-        ¿Olvidaste tu contraseña?
-      </Text>
-    </View>
+          <TouchableOpacity
+            disabled={!email || !emailRegex.test(email)}
+            onPress={() => {
+              if (!email) {
+                Alert.alert('Error', 'Por favor, ingresa tu correo primero');
+                return;
+              }
+
+              resetPassword(email.trim())
+                .then(() => {
+                  Alert.alert('Listo', 'Se ha enviado un correo para restablecer tu contraseña');
+                })
+                .catch((error: unknown) => {
+                  let message = 'No se pudo enviar el correo';
+
+                  if ((error as { code: string }).code === 'auth/invalid-email') {
+                    message = 'Correo inválido';
+                  } else if ((error as { code: string }).code === 'auth/user-not-found') {
+                    message = 'No existe una cuenta con ese correo';
+                  }
+
+                  Alert.alert('Error', message);
+                });
+            }}
+          >
+            <Text
+              style={{
+                color: '#5A5CFF',
+                textAlign: 'right',
+                marginBottom: 16,
+                fontSize: 13,
+              }}
+            >
+              ¿Olvidaste tu contraseña?
+            </Text>
+          </TouchableOpacity>
+
+          <Pressable
+            onPress={handleLogin}
+            disabled={loading}
+            style={{
+              backgroundColor: loading ? '#A0A3FF' : '#5A5CFF',
+              borderRadius: 8,
+              paddingVertical: 12,
+              alignItems: 'center',
+              flexDirection: 'row',
+              justifyContent: 'center',
+            }}
+          >
+            {loading && <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />}
+            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
+              {loading ? 'Ingresando...' : 'Iniciar sesión'}
+            </Text>
+          </Pressable>
+
+          <TouchableOpacity onPress={() => router.push('/auth/register')}>
+            <Text
+              style={{
+                marginTop: 20,
+                textAlign: 'center',
+                color: '#5A5CFF',
+                fontWeight: '500',
+                fontSize: 14,
+              }}
+            >
+              ¿No tienes cuenta? Regístrate
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-around',
+            alignItems: 'center',
+            padding: 16,
+            borderTopWidth: 1,
+            borderColor: '#eee',
+          }}
+        >
+          <TouchableOpacity onPress={() => router.push('/auth/help')}>
+            <FontAwesome6 name="circle-info" size={24} color="#5A5CFF" />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => Linking.openURL('tel:+526242623907')}>
+            <FontAwesome6 name="phone" size={24} color="#5A5CFF" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() =>
+              Linking.openURL('mailto:soporte@medaccess.com?subject=Ayuda%20con%20el%20acceso')
+            }
+          >
+            <FontAwesome6 name="envelope" size={24} color="#5A5CFF" />
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

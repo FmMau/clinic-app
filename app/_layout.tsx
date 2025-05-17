@@ -13,7 +13,7 @@ export default function RootLayout() {
       if (!user) {
         router.replace('/auth/login');
       } else {
-        router.replace('/(tabs)');
+        router.replace('/');
       }
     }
   }, [user, loading]);
