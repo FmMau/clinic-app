@@ -1,5 +1,6 @@
 import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { FontAwesome6 } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
@@ -15,7 +16,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -33,6 +33,7 @@ export default function RegisterScreen() {
     allergies: '',
   });
   const [loading, setLoading] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -40,99 +41,88 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const phoneRegex = /^[0-9]{10,15}$/;
-    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
-  
-    // Validaciones
-    if (!form.name || form.name.length < 2) {
+    const phoneRegex = /^\d{10}$/;
+
+    if (!form.name || form.name.trim().length < 2) {
       Alert.alert('Error', 'Nombre es requerido');
       return;
     }
-  
-    if (!form.lastname || form.lastname.length < 2) {
+    if (!form.lastname || form.lastname.trim().length < 2) {
       Alert.alert('Error', 'Apellido es requerido');
       return;
     }
-  
-    if (!form.email || !emailRegex.test(form.email)) {
+    if (!form.email || !emailRegex.test(form.email.trim())) {
       Alert.alert('Error', 'Correo inválido');
       return;
     }
-  
     if (!form.password || form.password.length < 6) {
       Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
       return;
     }
-  
     if (form.password !== form.confirm) {
       Alert.alert('Error', 'Las contraseñas no coinciden');
       return;
     }
-  
     if (!form.phone || !phoneRegex.test(form.phone)) {
-      Alert.alert('Error', 'Teléfono inválido');
+      Alert.alert('Error', 'Teléfono inválido (10 dígitos)');
       return;
     }
-  
-    if (!form.birthdate || !dateRegex.test(form.birthdate)) {
-      Alert.alert('Error', 'Fecha de nacimiento inválida (usa DD/MM/YYYY)');
+    if (!form.birthdate || new Date(form.birthdate) > new Date()) {
+      Alert.alert('Error', 'Selecciona una fecha de nacimiento válida');
       return;
     }
-  
-    if (form.curp && form.curp.length < 10) {
-      Alert.alert('Error', 'CURP debe tener al menos 10 caracteres');
+    if (form.curp && form.curp.length !== 18) {
+      Alert.alert('Error', 'La CURP debe tener 18 caracteres');
       return;
     }
-  
     if (!form.address || form.address.length < 5) {
       Alert.alert('Error', 'Dirección es requerida');
       return;
     }
-  
     if (!form.gender) {
       Alert.alert('Error', 'Selecciona un sexo');
       return;
     }
-  
-    // Registro en Firebase
+
     setLoading(true);
     try {
-      const userCred = await createUserWithEmailAndPassword(auth, form.email, form.password);
+      const userCred = await createUserWithEmailAndPassword(auth, form.email.trim(), form.password);
       const uid = userCred.user.uid;
-  
+
       await setDoc(doc(db, 'patients', uid), {
-        name: form.name,
-        lastname: form.lastname,
-        email: form.email,
+        name: form.name.trim(),
+        lastname: form.lastname.trim(),
+        email: form.email.trim(),
         role: 'paciente',
-        phone: form.phone,
+        phone: form.phone.trim(),
         birthdate: form.birthdate,
-        curp: form.curp,
-        address: form.address,
+        curp: form.curp.trim(),
+        address: form.address.trim(),
         gender: form.gender,
-        allergies: form.allergies,
+        allergies: form.allergies.trim(),
         createdAt: new Date(),
       });
-  
+
       router.replace('/');
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
     }
-  };  
+  };
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: '#fff' }}
     >
-      <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 48}}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 48 }}>
         <View style={{ alignItems: 'center', marginBottom: 24 }}>
           <FontAwesome6 name="user-plus" size={48} color="#5A5CFF" />
           <Text style={{ fontSize: 22, fontWeight: 'bold', marginTop: 8 }}>Registro</Text>
         </View>
 
+        {/* Campos de texto */}
         {[
           { label: 'Nombre', key: 'name' },
           { label: 'Apellido', key: 'lastname' },
@@ -140,16 +130,15 @@ export default function RegisterScreen() {
           { label: 'Contraseña', key: 'password', secure: true },
           { label: 'Confirmar contraseña', key: 'confirm', secure: true },
           { label: 'Teléfono', key: 'phone', keyboardType: 'phone-pad' },
-          { label: 'Fecha de nacimiento', key: 'birthdate', placeholder: 'DD/MM/YYYY' },
           { label: 'CURP', key: 'curp' },
           { label: 'Dirección', key: 'address' },
-        ].map(({ label, key, keyboardType, secure, placeholder }) => (
+        ].map(({ label, key, keyboardType, secure }) => (
           <View key={key} style={{ marginBottom: 12 }}>
             <Text style={{ marginBottom: 4 }}>{label}</Text>
             <TextInput
               value={form[key as keyof typeof form]}
               onChangeText={(value) => handleChange(key as keyof typeof form, value)}
-              placeholder={placeholder || `Ingrese su ${label.toLowerCase()}`}
+              placeholder={`Ingrese su ${label.toLowerCase()}`}
               placeholderTextColor="#999"
               secureTextEntry={secure}
               keyboardType={keyboardType as any}
@@ -163,6 +152,41 @@ export default function RegisterScreen() {
             />
           </View>
         ))}
+
+        {/* Fecha de nacimiento */}
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{ marginBottom: 4 }}>Fecha de nacimiento</Text>
+          <TouchableOpacity
+            onPress={() => setShowDatePicker(true)}
+            style={{
+              backgroundColor: '#F5F5F5',
+              borderRadius: 8,
+              padding: 12,
+              borderWidth: 1,
+              borderColor: '#E0E0E0',
+            }}
+          >
+            <Text style={{ color: form.birthdate ? '#000' : '#999' }}>
+              {form.birthdate
+                ? new Date(form.birthdate).toLocaleDateString('es-MX')
+                : 'Selecciona una fecha'}
+            </Text>
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={form.birthdate ? new Date(form.birthdate) : new Date()}
+              mode="date"
+              display="default"
+              maximumDate={new Date()}
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (selectedDate) {
+                  handleChange('birthdate', selectedDate.toISOString());
+                }
+              }}
+            />
+          )}
+        </View>
 
         {/* Sexo */}
         <Text style={{ marginBottom: 4 }}>Sexo</Text>
@@ -214,8 +238,9 @@ export default function RegisterScreen() {
 
         <Pressable
           onPress={handleRegister}
+          disabled={loading}
           style={{
-            backgroundColor: '#5A5CFF',
+            backgroundColor: loading ? '#A0A3FF' : '#5A5CFF',
             borderRadius: 8,
             paddingVertical: 14,
             alignItems: 'center',

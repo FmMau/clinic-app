@@ -1,5 +1,6 @@
 import { auth, db, storage } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import {
@@ -25,6 +26,7 @@ export default function PatientProfile() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showBirthDatePicker, setShowBirthDatePicker] = useState(false);
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
@@ -43,6 +45,28 @@ export default function PatientProfile() {
   }, []);
 
   const handleSave = async () => {
+    const { email, phone, curp, birthdate } = data;
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      Alert.alert('Error', 'Correo electrónico no válido.');
+      return;
+    }
+
+    if (!phone || phone.length !== 10 || !/^\d+$/.test(phone)) {
+      Alert.alert('Error', 'Teléfono debe tener 10 dígitos numéricos.');
+      return;
+    }
+
+    if (!curp || curp.length !== 18) {
+      Alert.alert('Error', 'La CURP debe tener 18 caracteres.');
+      return;
+    }
+
+    if (!birthdate || new Date(birthdate) > new Date()) {
+      Alert.alert('Error', 'La fecha de nacimiento no puede ser futura.');
+      return;
+    }
+
     try {
       const uid = auth.currentUser?.uid;
       if (!uid) return;
@@ -159,16 +183,58 @@ export default function PatientProfile() {
       </View>
 
       {/* Campos */}
-      <EditableField label="Nombre" value={data.name} onChange={(val) => setData({ ...data, name: val })} editable={editing} />
-      <EditableField label="Apellidos" value={data.lastname} onChange={(val) => setData({ ...data, lastname: val })} editable={editing} />
-      <EditableField label="Correo electrónico" value={data.email} editable={false} />
-      <EditableField label="Teléfono" value={data.phone} onChange={(val) => setData({ ...data, phone: val })} editable={editing} />
-      <EditableField label="Dirección" value={data.address} onChange={(val) => setData({ ...data, address: val })} editable={editing} />
-      <EditableField label="Alergias" value={data.allergies} onChange={(val) => setData({ ...data, allergies: val })} editable={editing} />
-      <EditableField label="Sexo" value={data.gender} onChange={(val) => setData({ ...data, gender: val })} editable={editing} />
-      <EditableField label="Fecha de nacimiento" value={data.birthdate} onChange={(val) => setData({ ...data, birthdate: val })} editable={editing} />
-      <EditableField label="CURP" value={data.curp} onChange={(val) => setData({ ...data, curp: val })} editable={editing} />
-      <EditableField label="Fecha de registro" value={formatDate(data.createdAt)} editable={false} />
+      {renderField("Nombre", data.name, (val) => setData({ ...data, name: val }), editing)}
+      {renderField("Apellidos", data.lastname, (val) => setData({ ...data, lastname: val }), editing)}
+      {renderField("Correo electrónico", data.email, undefined, false)}
+      {renderField("Teléfono", data.phone, (val) => setData({ ...data, phone: val }), editing)}
+      {renderField("Dirección", data.address, (val) => setData({ ...data, address: val }), editing)}
+      {renderField("Alergias", data.allergies, (val) => setData({ ...data, allergies: val }), editing)}
+      {renderField("Sexo", data.gender, (val) => setData({ ...data, gender: val }), editing)}
+
+      {/* Fecha de nacimiento */}
+      <View style={styles.field}>
+        <Text style={styles.label}>Fecha de nacimiento</Text>
+        {editing ? (
+          <TouchableOpacity
+            onPress={() => setShowBirthDatePicker(true)}
+            style={{
+              backgroundColor: '#fff',
+              borderWidth: 1,
+              borderColor: '#ccc',
+              borderRadius: 8,
+              padding: 10,
+            }}
+          >
+            <Text style={{ color: '#444' }}>
+              {data.birthdate
+                ? formatDate(data.birthdate)
+                : 'Selecciona una fecha'}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={{ color: '#444', paddingVertical: 8 }}>
+            {formatDate(data.birthdate)}
+          </Text>
+        )}
+      </View>
+
+      {showBirthDatePicker && (
+        <DateTimePicker
+          value={data.birthdate ? new Date(data.birthdate) : new Date()}
+          mode="date"
+          display="default"
+          maximumDate={new Date()}
+          onChange={(event, selectedDate) => {
+            setShowBirthDatePicker(false);
+            if (selectedDate) {
+              setData({ ...data, birthdate: selectedDate.toISOString() });
+            }
+          }}
+        />
+      )}
+
+      {renderField("CURP", data.curp, (val) => setData({ ...data, curp: val }), editing)}
+      {renderField("Fecha de registro", formatDate(data.createdAt), undefined, false)}
 
       <View style={styles.buttonRow}>
         <TouchableOpacity
@@ -198,17 +264,7 @@ export default function PatientProfile() {
   );
 }
 
-function EditableField({
-  label,
-  value,
-  onChange,
-  editable = false,
-}: {
-  label: string;
-  value: string;
-  onChange?: (val: string) => void;
-  editable?: boolean;
-}) {
+function renderField(label: string, value: string, onChange?: (val: string) => void, editable: boolean = false) {
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
@@ -226,7 +282,7 @@ function EditableField({
   );
 }
 
-function formatDate(value: any) {
+function formatDate(value: string | { seconds: number }) {
   try {
     const date =
       typeof value === 'string'
@@ -243,42 +299,14 @@ function formatDate(value: any) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    backgroundColor: '#fff',
-  },
-  status: {
-    padding: 20,
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 12,
-  },
-  name: {
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  role: {
-    fontSize: 16,
-    color: '#6366f1',
-  },
-  field: {
-    marginBottom: 16,
-  },
-  label: {
-    fontWeight: 'bold',
-    marginBottom: 4,
-    color: '#333',
-  },
+  container: { flex: 1, padding: 24, backgroundColor: '#fff' },
+  status: { padding: 20, fontSize: 16, textAlign: 'center' },
+  header: { alignItems: 'center', marginBottom: 24 },
+  avatar: { width: 100, height: 100, borderRadius: 50, marginBottom: 12 },
+  name: { fontSize: 22, fontWeight: 'bold' },
+  role: { fontSize: 16, color: '#6366f1' },
+  field: { marginBottom: 16 },
+  label: { fontWeight: 'bold', marginBottom: 4, color: '#333' },
   input: {
     borderWidth: 1,
     borderColor: '#eee',
@@ -287,19 +315,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f4f4f4',
     color: '#444',
   },
-  buttonRow: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
+  buttonRow: { marginTop: 24, alignItems: 'center' },
   editButton: {
     backgroundColor: '#6366f1',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
-  editButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+  editButtonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 });

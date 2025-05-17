@@ -4,6 +4,7 @@ import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
@@ -22,22 +23,22 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!email || !emailRegex.test(email)) {
+  const handleLogin = async () => {
+    if (!email.trim() || !emailRegex.test(email.trim())) {
       Alert.alert('Error', 'Ingresa un correo válido');
       return;
     }
 
-    if (!password || password.length < 6) {
+    if (!password || password.trim().length < 6) {
       Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
     setLoading(true);
     try {
-      await signIn(email, password);
+      await signIn(email.trim(), password.trim());
       router.replace('/');
     } catch (error: any) {
       let message = 'Error al iniciar sesión';
@@ -62,7 +63,6 @@ export default function LoginScreen() {
       style={{ flex: 1, backgroundColor: '#fff' }}
     >
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between' }}>
-        {/* Logo */}
         <View style={{ alignItems: 'center', marginTop: 60 }}>
           <Image
             source={require('@/assets/medaccess-logo.png')}
@@ -70,7 +70,6 @@ export default function LoginScreen() {
           />
         </View>
 
-        {/* Card Login */}
         <View
           style={{
             backgroundColor: '#fff',
@@ -95,6 +94,8 @@ export default function LoginScreen() {
             placeholderTextColor="#999"
             autoCapitalize="none"
             keyboardType="email-address"
+            autoComplete="email"
+            textContentType="emailAddress"
             style={{
               backgroundColor: '#F5F5F5',
               borderRadius: 8,
@@ -111,6 +112,8 @@ export default function LoginScreen() {
             placeholder="Contraseña"
             placeholderTextColor="#999"
             secureTextEntry
+            autoComplete="password"
+            textContentType="password"
             style={{
               backgroundColor: '#F5F5F5',
               borderRadius: 8,
@@ -122,13 +125,14 @@ export default function LoginScreen() {
           />
 
           <TouchableOpacity
+            disabled={!email || !emailRegex.test(email)}
             onPress={() => {
               if (!email) {
                 Alert.alert('Error', 'Por favor, ingresa tu correo primero');
                 return;
               }
 
-              resetPassword(email)
+              resetPassword(email.trim())
                 .then(() => {
                   Alert.alert('Listo', 'Se ha enviado un correo para restablecer tu contraseña');
                 })
@@ -157,7 +161,6 @@ export default function LoginScreen() {
             </Text>
           </TouchableOpacity>
 
-
           <Pressable
             onPress={handleLogin}
             disabled={loading}
@@ -166,8 +169,11 @@ export default function LoginScreen() {
               borderRadius: 8,
               paddingVertical: 12,
               alignItems: 'center',
+              flexDirection: 'row',
+              justifyContent: 'center',
             }}
           >
+            {loading && <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />}
             <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
               {loading ? 'Ingresando...' : 'Iniciar sesión'}
             </Text>
@@ -188,7 +194,6 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Footer con íconos funcionales */}
         <View
           style={{
             flexDirection: 'row',
