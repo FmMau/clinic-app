@@ -6,12 +6,20 @@ export default function ProfileLayout() {
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: '#5A5CFF', // Replace with your desired background color
+          backgroundColor: '#5A5CFF',
         },
-        headerTintColor: '#333', // Replace with your desired text/icon color
+        headerTintColor: '#FFFFFF',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
       }}
     >
-      <Stack.Screen name="index" options={{ title: '' }} />
+      <Stack.Screen
+        name="index"
+        options={{
+          title: 'Perfil',
+        }}
+      />
     </Stack>
   );
 }
