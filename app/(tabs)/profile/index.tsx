@@ -1,7 +1,7 @@
 import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
   Image,
@@ -21,14 +21,12 @@ export default function PatientProfileView() {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
 
-    const fetchProfile = async () => {
-      const docRef = doc(db, 'patients', uid);
-      const snap = await getDoc(docRef);
+    const unsubscribe = onSnapshot(doc(db, 'patients', uid), (snap) => {
       if (snap.exists()) setData(snap.data());
       setLoading(false);
-    };
+    });
 
-    fetchProfile();
+    return () => unsubscribe();
   }, []);
 
   if (loading) return <Text style={styles.status}>Cargando...</Text>;
