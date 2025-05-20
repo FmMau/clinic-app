@@ -48,7 +48,7 @@ export default function CreateAppointment() {
         status: 'pendiente',
       });
       Alert.alert('Éxito', 'Cita agendada correctamente.');
-      router.replace('/(tabs)/appointments');
+      router.replace('/(tabs)/patient/appointments');
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {

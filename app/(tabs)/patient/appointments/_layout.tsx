@@ -17,7 +17,7 @@ export default function AppointmentsLayout() {
           try {
             await deleteDoc(doc(db, 'appointments', String(id)));
             Alert.alert('Cita eliminada');
-            router.replace('/appointments');
+            router.replace('/(tabs)/patient/appointments');
           } catch (error) {
             Alert.alert('Error', 'No se pudo eliminar la cita.');
             console.error(error);
@@ -49,7 +49,7 @@ export default function AppointmentsLayout() {
           headerRight: () => (
             <TouchableOpacity
               style={{ marginRight: 16 }}
-              onPress={() => router.push('/appointments/create')}
+              onPress={() => router.push('/(tabs)/patient/appointments/create')}
             >
               <Ionicons name="add" size={24} color="#fff" />
             </TouchableOpacity>
@@ -72,7 +72,7 @@ export default function AppointmentsLayout() {
           title: 'Detalles',
           headerRight: () => (
             <View style={{ flexDirection: 'row', gap: 12, marginRight: 12 }}>
-              <TouchableOpacity onPress={() => router.push(`/appointments/${id}/edit`)}>
+              <TouchableOpacity onPress={() => router.push(`/(tabs)/patient/appointments/${id}/edit`)}>
                 <Ionicons name="create-outline" size={22} color="#fff" />
               </TouchableOpacity>
               <TouchableOpacity onPress={handleDelete}>

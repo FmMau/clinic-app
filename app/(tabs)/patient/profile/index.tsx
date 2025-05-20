@@ -59,7 +59,7 @@ export default function PatientProfileView() {
       <View style={styles.buttonRow}>
         <TouchableOpacity
           style={styles.editButton}
-          onPress={() => router.push('/profile/edit')}
+          onPress={() => router.push('/(tabs)/patient/profile/edit')}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="create-outline" size={20} color="#fff" style={{ marginRight: 8 }} />

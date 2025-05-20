@@ -51,7 +51,7 @@ export default function EditAppointment() {
       });
 
       Alert.alert('Cita actualizada');
-      router.replace(`/appointments/${id}`);
+      router.replace(`/(tabs)/patient/appointments/${id}`);
     } catch (error) {
       Alert.alert('Error', 'No se pudo actualizar la cita.');
       console.error(error);

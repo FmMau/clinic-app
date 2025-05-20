@@ -87,7 +87,7 @@ export default function AllAppointments() {
         return (
           <TouchableOpacity
             key={a.id}
-            onPress={() => router.push(`/appointments/${a.id}`)}
+            onPress={() => router.push(`/(tabs)/patient/appointments/${a.id}`)}
             style={{
               backgroundColor: '#fff',
               padding: 16,
@@ -117,7 +117,7 @@ export default function AllAppointments() {
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <TouchableOpacity
-                onPress={() => router.push(`/appointments/${a.id}?edit=1`)}
+                onPress={() => router.push(`/(tabs)/patient/appointments/${a.id}?edit=1`)}
                 style={{
                   backgroundColor: '#5A5CFF',
                   paddingVertical: 8,

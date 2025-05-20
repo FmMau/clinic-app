@@ -57,7 +57,7 @@ export default function PaymentAndReview() {
       });
 
       Alert.alert('Gracias', 'Tu pago y valoración han sido registrados.');
-      router.push('/(tabs)/payments');
+      router.push('/(tabs)/patient/payments');
     } catch (error) {
       console.error('Error al actualizar:', error);
       Alert.alert('Error', 'No se pudo registrar el pago.');

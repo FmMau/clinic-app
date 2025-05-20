@@ -72,11 +72,11 @@ export default function PaymentsIndex() {
 
   const handleNavigation = (item: any) => {
     if (item.status === 'pendiente') {
-      router.push(`/payments/${item.id}/pay`);
+      router.push(`/(tabs)/patient/payments/${item.id}/pay`);
     } else if (!item.rating) {
-      router.push(`/payments/${item.id}/review`);
+      router.push(`/(tabs)/patient/payments/${item.id}/review`);
     } else {
-      router.push(`/payments/${item.id}`);
+      router.push(`/(tabs)/patient/payments/${item.id}`);
     }
   };
 

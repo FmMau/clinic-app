@@ -1,11 +1,11 @@
 import { HapticTab } from '@/components/HapticTab';
+import { AnimatedTabIcon } from '@/components/ui/AnimatedTabIcon';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
-import { AnimatedTabIcon } from '../../components/ui/AnimatedTabIcon';
 
-export default function TabLayout() {
+export default function PatientLayout() {
   const colorScheme = useColorScheme();
 
   return (
@@ -25,7 +25,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="patient"
+        name="index"
         options={{
           title: 'Home',
           tabBarIcon: ({ color, size, focused }) => (

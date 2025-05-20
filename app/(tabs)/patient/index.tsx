@@ -1,3 +1,4 @@
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -12,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 export default function PatientDashboard() {
+  useRoleGuard(['paciente']); 
   const router = useRouter();
   const [appointments, setAppointments] = useState<any[]>([]);
   const [records, setRecords] = useState<any[]>([]);
@@ -72,7 +74,7 @@ export default function PatientDashboard() {
       </Text>
 
       <TouchableOpacity
-        onPress={() => router.push('/appointments/create')}
+        onPress={() => router.push('/(tabs)/patient/appointments/create')}
         style={{
           backgroundColor: '#5A5CFF',
           paddingVertical: 14,
@@ -89,7 +91,7 @@ export default function PatientDashboard() {
 
       <Section icon="calendar-outline" title="Próximas Citas">
         {appointments.map((a) => (
-          <TouchableOpacity key={a.id} onPress={() => router.push(`/appointments/${a.id}`)}>
+          <TouchableOpacity key={a.id} onPress={() => router.push(`/(tabs)/patient/appointments/${a.id}`)}>
             <Card title={a.doctor || 'Consulta'} subtitle={formatDate(a.date)} />
           </TouchableOpacity>
         ))}
@@ -97,7 +99,7 @@ export default function PatientDashboard() {
 
       <Section icon="medkit-outline" title="Historial Clínico">
         {records.map((r) => (
-          <TouchableOpacity key={r.id} onPress={() => router.push(`/records/${r.id}`)}>
+          <TouchableOpacity key={r.id} onPress={() => router.push(`/(tabs)/patient/records/${r.id}`)}>
             <Card title={r.title} subtitle={`Resultado: ${r.result}`} />
           </TouchableOpacity>
         ))}
@@ -105,7 +107,7 @@ export default function PatientDashboard() {
 
       <Section icon="card-outline" title="Pagos Realizados">
         {payments.map((p) => (
-          <TouchableOpacity key={p.id} onPress={() => router.push(`/payments/${p.id}`)}>
+          <TouchableOpacity key={p.id} onPress={() => router.push(`/(tabs)/patient/payments/${p.id}`)}>
             <Card title={p.concept} subtitle={`Monto: $${p.amount}`} />
           </TouchableOpacity>
         ))}

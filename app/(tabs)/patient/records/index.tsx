@@ -63,7 +63,7 @@ export default function MedicalRecordsIndex() {
   }, [search, records]);
 
   const handlePress = (id: string) => {
-    router.push(`/records/${id}`);
+    router.push(`/(tabs)/patient/records/${id}`);
   };
 
   return (
