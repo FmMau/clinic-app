@@ -1,3 +1,5 @@
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -14,6 +16,7 @@ import {
 } from 'react-native';
 
 export default function EditAppointment() {
+  const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const { id } = useLocalSearchParams();
   const router = useRouter();
 
@@ -23,7 +26,7 @@ export default function EditAppointment() {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    if (!id || typeof id !== 'string') return;
+    if (!id || typeof id !== 'string' || !allowed) return;
 
     const fetchData = async () => {
       const docSnap = await getDoc(doc(db, 'appointments', id));
@@ -36,7 +39,11 @@ export default function EditAppointment() {
     };
 
     fetchData();
-  }, [id]);
+  }, [id, allowed]);
+
+  if (guardLoading) return <LoadingScreen message="Cargando cita..." />;
+  if (!allowed) return null;
+  if (!appointment) return <Text style={{ padding: 24 }}>Cita no encontrada</Text>;
 
   const handleUpdate = async () => {
     if (!newDate || !newReason.trim()) {

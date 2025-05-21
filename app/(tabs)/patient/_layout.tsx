@@ -1,12 +1,18 @@
 import { HapticTab } from '@/components/HapticTab';
 import { AnimatedTabIcon } from '@/components/ui/AnimatedTabIcon';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 
-export default function PatientLayout() {
+export default function PatientTabsLayout() {
   const colorScheme = useColorScheme();
+  const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
+
+  if (guardLoading) return <LoadingScreen message="Validando acceso..." />;
+  if (!allowed) return null;
 
   return (
     <Tabs

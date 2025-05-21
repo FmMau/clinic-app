@@ -1,14 +1,16 @@
+import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useAuth } from '@/hooks/useAuth';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { db } from '@/lib/firebase/firebaseConfig';
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import { Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 export default function PayScreen() {
+  const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const { id } = useLocalSearchParams(); // paymentId
   const { user } = useAuth();
   const router = useRouter();
@@ -18,7 +20,7 @@ export default function PayScreen() {
 
   useEffect(() => {
     const startPayment = async () => {
-      if (!id || typeof id !== 'string' || !user?.uid) return;
+      if (!id || typeof id !== 'string' || !user?.uid || !allowed) return;
 
       try {
         const paymentDoc = await getDoc(doc(db, 'payments', id));
@@ -56,17 +58,13 @@ export default function PayScreen() {
     };
 
     startPayment();
-  }, [id, user]);
+  }, [id, user, allowed]);
 
-  if (loading || !checkoutUrl) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Ionicons name="card-outline" size={42} color="#5A5CFF" />
-        <ActivityIndicator size="large" style={{ marginTop: 16 }} />
-        <Text style={{ marginTop: 10 }}>Generando sesión de pago...</Text>
-      </View>
-    );
+  if (guardLoading || loading || !checkoutUrl) {
+    return <LoadingScreen message="Generando sesión de pago..." />;
   }
+
+  if (!allowed) return null;
 
   return <WebView source={{ uri: checkoutUrl }} />;
 }

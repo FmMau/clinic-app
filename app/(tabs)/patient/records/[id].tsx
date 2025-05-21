@@ -1,3 +1,5 @@
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -12,6 +14,7 @@ import {
 } from 'react-native';
 
 export default function RecordDetail() {
+  const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const [record, setRecord] = useState<any>(null);
@@ -19,7 +22,7 @@ export default function RecordDetail() {
 
   useEffect(() => {
     const fetchRecord = async () => {
-      if (!id || typeof id !== 'string') return;
+      if (!id || typeof id !== 'string' || !allowed) return;
 
       const docRef = doc(db, 'medicalRecords', id);
       const docSnap = await getDoc(docRef);
@@ -32,9 +35,10 @@ export default function RecordDetail() {
     };
 
     fetchRecord();
-  }, [id]);
+  }, [id, allowed]);
 
-  if (loading) return <Text style={{ padding: 20 }}>Cargando...</Text>;
+  if (guardLoading || loading) return <LoadingScreen message="Cargando récord..." />;
+  if (!allowed) return null;
   if (!record) return <Text style={{ padding: 20 }}>Registro no encontrado</Text>;
 
   return (
@@ -73,7 +77,7 @@ export default function RecordDetail() {
       )}
 
       <TouchableOpacity
-        onPress={() => router.push('/appointments/create')}
+        onPress={() => router.push('/(tabs)/patient/appointments/create')}
         style={styles.button}
       >
         <Ionicons name="calendar-outline" size={18} color="#fff" style={{ marginRight: 6 }} />

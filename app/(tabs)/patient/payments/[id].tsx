@@ -1,3 +1,5 @@
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
@@ -6,12 +8,13 @@ import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 export default function PaymentDetail() {
+  const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const { id } = useLocalSearchParams();
   const [payment, setPayment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id || typeof id !== 'string') return;
+    if (!id || typeof id !== 'string' || !allowed) return;
 
     const docRef = doc(db, 'payments', id);
 
@@ -32,9 +35,10 @@ export default function PaymentDetail() {
     );
 
     return () => unsubscribe();
-  }, [id]);
+  }, [id, allowed]);
 
-  if (loading) return <Text style={{ padding: 20 }}>Cargando...</Text>;
+  if (guardLoading || loading) return <LoadingScreen message="Cargando detalle de pago..." />;
+  if (!allowed) return null;
   if (!payment) return <Text style={{ padding: 20 }}>Pago no encontrado</Text>;
 
   const subtotal = payment.amount || 0;
@@ -47,7 +51,6 @@ export default function PaymentDetail() {
         Pago Completado
       </Text>
 
-      {/* Resumen del pago */}
       <SectionTitle title="Resumen del Pago" />
       <Card>
         <RowItem
@@ -79,7 +82,6 @@ export default function PaymentDetail() {
         </View>
       </Card>
 
-      {/* Método de pago */}
       <SectionTitle title="Método de Pago" />
       <Card>
         <View
@@ -94,7 +96,6 @@ export default function PaymentDetail() {
         </View>
       </Card>
 
-      {/* Confirmación */}
       <SectionTitle title="Confirmación" />
       <Card>
         <Text>
@@ -103,7 +104,6 @@ export default function PaymentDetail() {
         </Text>
       </Card>
 
-      {/* Footer */}
       <View style={{ marginTop: 32, alignItems: 'center' }}>
         <Text style={{ fontSize: 12, color: '#fff', backgroundColor: '#4F46E5', padding: 12, borderRadius: 8, textAlign: 'center' }}>
           Contacto: support@medaccess.com{'\n'}Tel: +1 800 123 4567

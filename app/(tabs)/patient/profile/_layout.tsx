@@ -1,4 +1,5 @@
 import { auth } from '@/lib/firebase/firebaseConfig';
+import { useUserRole } from '@/lib/firebase/useUserRole';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
@@ -6,6 +7,7 @@ import { TouchableOpacity } from 'react-native';
 
 export default function PatientLayout() {
   const router = useRouter();
+  const { role } = useUserRole(); // 👈 para condicionar botón
 
   const handleLogout = async () => {
     try {
@@ -29,11 +31,12 @@ export default function PatientLayout() {
         name="index"
         options={{
           title: 'Perfil del paciente',
-          headerRight: () => (
-            <TouchableOpacity onPress={handleLogout} style={{ marginRight: 16 }}>
-              <Ionicons name="log-out-outline" size={24} color="#fff" />
-            </TouchableOpacity>
-          ),
+          headerRight: () =>
+            role === 'paciente' && (
+              <TouchableOpacity onPress={handleLogout} style={{ marginRight: 16 }}>
+                <Ionicons name="log-out-outline" size={24} color="#fff" />
+              </TouchableOpacity>
+            ),
         }}
       />
       <Stack.Screen

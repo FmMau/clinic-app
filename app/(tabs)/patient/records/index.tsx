@@ -1,4 +1,6 @@
+import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useAuth } from '@/hooks/useAuth';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -19,6 +21,7 @@ import {
 } from 'react-native';
 
 export default function MedicalRecordsIndex() {
+  const { loading: guardLoading, allowed } = useRoleGuard(['paciente', 'doctor']);
   const router = useRouter();
   const { user } = useAuth();
   const [records, setRecords] = useState<any[]>([]);
@@ -26,7 +29,7 @@ export default function MedicalRecordsIndex() {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid || !allowed) return;
 
     const q = query(
       collection(db, 'medicalRecords'),
@@ -44,7 +47,7 @@ export default function MedicalRecordsIndex() {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, allowed]);
 
   useEffect(() => {
     if (!search.trim()) {
@@ -65,6 +68,9 @@ export default function MedicalRecordsIndex() {
   const handlePress = (id: string) => {
     router.push(`/(tabs)/patient/records/${id}`);
   };
+
+  if (guardLoading) return <LoadingScreen message="Cargando historial clínico..." />;
+  if (!allowed) return null;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f7f7f7', padding: 16 }}>

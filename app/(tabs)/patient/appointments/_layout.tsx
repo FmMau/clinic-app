@@ -1,4 +1,5 @@
 import { db } from '@/lib/firebase/firebaseConfig';
+import { useUserRole } from '@/lib/firebase/useUserRole';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { deleteDoc, doc } from 'firebase/firestore';
@@ -7,6 +8,7 @@ import { Alert, TouchableOpacity, View } from 'react-native';
 export default function AppointmentsLayout() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const { role } = useUserRole();
 
   const handleDelete = async () => {
     Alert.alert('Eliminar cita', '¿Deseas eliminar esta cita permanentemente?', [
@@ -41,23 +43,24 @@ export default function AppointmentsLayout() {
         },
       }}
     >
-      {/* Pantalla principal */}
+      {/* Listado de citas */}
       <Stack.Screen
         name="index"
         options={{
           title: 'Citas',
-          headerRight: () => (
-            <TouchableOpacity
-              style={{ marginRight: 16 }}
-              onPress={() => router.push('/(tabs)/patient/appointments/create')}
-            >
-              <Ionicons name="add" size={24} color="#fff" />
-            </TouchableOpacity>
-          ),
+          headerRight: () =>
+            role === 'paciente' && (
+              <TouchableOpacity
+                style={{ marginRight: 16 }}
+                onPress={() => router.push('/(tabs)/patient/appointments/create')}
+              >
+                <Ionicons name="add" size={24} color="#fff" />
+              </TouchableOpacity>
+            ),
         }}
       />
 
-      {/* Formulario de agendar */}
+      {/* Formulario de creación */}
       <Stack.Screen
         name="create"
         options={{
@@ -70,20 +73,21 @@ export default function AppointmentsLayout() {
         name="[id]"
         options={{
           title: 'Detalles',
-          headerRight: () => (
-            <View style={{ flexDirection: 'row', gap: 12, marginRight: 12 }}>
-              <TouchableOpacity onPress={() => router.push(`/(tabs)/patient/appointments/${id}/edit`)}>
-                <Ionicons name="create-outline" size={22} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleDelete}>
-                <Ionicons name="trash-outline" size={22} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          ),
+          headerRight: () =>
+            role === 'paciente' && (
+              <View style={{ flexDirection: 'row', gap: 12, marginRight: 12 }}>
+                <TouchableOpacity onPress={() => router.push(`/(tabs)/patient/appointments/${id}/edit`)}>
+                  <Ionicons name="create-outline" size={22} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleDelete}>
+                  <Ionicons name="trash-outline" size={22} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ),
         }}
       />
 
-      {/* Edición de cita */}
+      {/* Edición */}
       <Stack.Screen
         name="[id]/edit"
         options={{

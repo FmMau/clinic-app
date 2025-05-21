@@ -1,3 +1,5 @@
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -6,12 +8,13 @@ import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 export default function AppointmentDetail() {
+  const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const [appointment, setAppointment] = useState<any>(null);
 
   useEffect(() => {
-    if (!id || typeof id !== 'string') return;
+    if (!id || typeof id !== 'string' || !allowed) return;
 
     const unsubscribe = onSnapshot(doc(db, 'appointments', id), (docSnap) => {
       if (docSnap.exists()) {
@@ -22,8 +25,10 @@ export default function AppointmentDetail() {
     });
 
     return () => unsubscribe();
-  }, [id]);
+  }, [id, allowed]);
 
+  if (guardLoading) return <LoadingScreen message="Cargando cita..." />;
+  if (!allowed) return null;
   if (!appointment) return <Text style={{ padding: 20 }}>Cita no encontrada</Text>;
 
   const dateObj = new Date(appointment.date);

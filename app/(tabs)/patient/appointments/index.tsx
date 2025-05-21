@@ -1,3 +1,5 @@
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -20,13 +22,14 @@ import {
 } from 'react-native';
 
 export default function AllAppointments() {
+  const { loading, allowed } = useRoleGuard(['paciente']);
   const router = useRouter();
   const [appointments, setAppointments] = useState<any[]>([]);
 
   const uid = auth.currentUser?.uid;
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid || !allowed) return;
 
     const q = query(
       collection(db, 'appointments'),
@@ -41,7 +44,7 @@ export default function AllAppointments() {
     });
 
     return () => unsubscribe();
-  }, [uid]);
+  }, [uid, allowed]);
 
   const cancelAppointment = (id: string) => {
     Alert.alert('Cancelar cita', '¿Deseas eliminar esta cita permanentemente?', [
@@ -60,6 +63,9 @@ export default function AllAppointments() {
       },
     ]);
   };
+
+  if (loading) return <LoadingScreen message="Cargando tus citas..." />;
+  if (!allowed) return null;
 
   return (
     <ScrollView

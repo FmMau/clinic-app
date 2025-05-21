@@ -1,6 +1,13 @@
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { Stack } from 'expo-router';
 
 export default function PaymentsLayout() {
+  const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
+
+  if (guardLoading) return <LoadingScreen message="Cargando pagos..." />;
+  if (!allowed) return null;
+
   return (
     <Stack
       screenOptions={{

@@ -1,4 +1,6 @@
+import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useAuth } from '@/hooks/useAuth';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -11,7 +13,6 @@ import {
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Text,
   TouchableOpacity,
@@ -19,13 +20,14 @@ import {
 } from 'react-native';
 
 export default function PaymentsIndex() {
+  const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const router = useRouter();
   const { user } = useAuth();
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid || !allowed) return;
 
     const paymentsRef = collection(db, 'payments');
     const q = query(
@@ -51,16 +53,13 @@ export default function PaymentsIndex() {
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, allowed]);
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
-        <Text style={{ marginTop: 10 }}>Cargando pagos...</Text>
-      </View>
-    );
+  if (guardLoading || loading) {
+    return <LoadingScreen message="Cargando pagos..." />;
   }
+
+  if (!allowed) return null;
 
   if (!payments.length) {
     return (

@@ -1,3 +1,5 @@
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { auth, db, storage } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -23,6 +25,7 @@ import {
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 export default function PatientProfileEdit() {
+  const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -31,7 +34,7 @@ export default function PatientProfileEdit() {
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
-    if (!uid) return;
+    if (!uid || !allowed) return;
 
     const fetchProfile = async () => {
       const docRef = doc(db, 'patients', uid);
@@ -41,7 +44,11 @@ export default function PatientProfileEdit() {
     };
 
     fetchProfile();
-  }, []);
+  }, [allowed]);
+
+  if (guardLoading || loading) return <LoadingScreen message="Cargando perfil..." />;
+  if (!allowed) return null;
+  if (!data) return <Text style={styles.status}>Perfil no encontrado</Text>;
 
   const handleSave = async () => {
     const { email, phone, curp, birthdate } = data;
@@ -160,9 +167,6 @@ export default function PatientProfileEdit() {
       Alert.alert('Error', 'No se pudo eliminar la foto');
     }
   };
-
-  if (loading) return <Text style={styles.status}>Cargando...</Text>;
-  if (!data) return <Text style={styles.status}>Perfil no encontrado</Text>;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>

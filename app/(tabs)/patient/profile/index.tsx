@@ -1,3 +1,5 @@
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -13,13 +15,14 @@ import {
 } from 'react-native';
 
 export default function PatientProfileView() {
+  const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
-    if (!uid) return;
+    if (!uid || !allowed) return;
 
     const unsubscribe = onSnapshot(doc(db, 'patients', uid), (snap) => {
       if (snap.exists()) setData(snap.data());
@@ -27,9 +30,10 @@ export default function PatientProfileView() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [allowed]);
 
-  if (loading) return <Text style={styles.status}>Cargando...</Text>;
+  if (guardLoading || loading) return <LoadingScreen message="Cargando perfil..." />;
+  if (!allowed) return null;
   if (!data) return <Text style={styles.status}>Perfil no encontrado</Text>;
 
   return (

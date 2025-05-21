@@ -1,10 +1,11 @@
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Text,
   TextInput,
@@ -13,6 +14,7 @@ import {
 } from 'react-native';
 
 export default function PaymentAndReview() {
+  const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const { id } = useLocalSearchParams(); // paymentId
   const router = useRouter();
 
@@ -23,7 +25,7 @@ export default function PaymentAndReview() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id || typeof id !== 'string') return;
+    if (!id || typeof id !== 'string' || !allowed) return;
 
     const fetchPayment = async () => {
       const docSnap = await getDoc(doc(db, 'payments', id));
@@ -39,7 +41,7 @@ export default function PaymentAndReview() {
     };
 
     fetchPayment();
-  }, [id]);
+  }, [id, allowed]);
 
   const handleSubmit = async () => {
     if (!method) {
@@ -74,13 +76,11 @@ export default function PaymentAndReview() {
     </TouchableOpacity>
   );
 
-  if (loading || amount === null) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+  if (guardLoading || loading || amount === null) {
+    return <LoadingScreen message="Cargando pago y valoración..." />;
   }
+
+  if (!allowed) return null;
 
   return (
     <View style={{ flex: 1, padding: 24 }}>

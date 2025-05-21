@@ -1,3 +1,4 @@
+import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,7 +14,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 export default function PatientDashboard() {
-  useRoleGuard(['paciente']); 
+  const { loading, allowed } = useRoleGuard(['paciente']);
   const router = useRouter();
   const [appointments, setAppointments] = useState<any[]>([]);
   const [records, setRecords] = useState<any[]>([]);
@@ -22,7 +23,7 @@ export default function PatientDashboard() {
   const uid = auth.currentUser?.uid;
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid || !allowed) return;
 
     const unsubscribeAppointments = onSnapshot(
       query(
@@ -65,12 +66,15 @@ export default function PatientDashboard() {
       unsubscribeRecords();
       unsubscribePayments();
     };
-  }, [uid]);
+  }, [uid, allowed]);
+
+  if (loading) return <LoadingScreen message="Cargando panel del paciente..." />;
+  if (!allowed) return null;
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#fff', padding: 20, paddingTop: 40 }}>
       <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 16 }}>
-        Bienvenida, Paciente
+        Bienvenid@, Paciente
       </Text>
 
       <TouchableOpacity

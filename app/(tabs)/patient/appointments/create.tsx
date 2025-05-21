@@ -1,3 +1,5 @@
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -15,11 +17,15 @@ import {
 } from 'react-native';
 
 export default function CreateAppointment() {
+  const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const router = useRouter();
   const [date, setDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
+
+  if (guardLoading) return <LoadingScreen message="Cargando acceso..." />;
+  if (!allowed) return null;
 
   const handleSubmit = async () => {
     if (!date || !reason.trim()) {
