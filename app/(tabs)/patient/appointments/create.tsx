@@ -4,8 +4,8 @@ import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
-import { addDoc, collection } from 'firebase/firestore';
-import { useState } from 'react';
+import { addDoc, collection, getDocs } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import DropDownPicker from 'react-native-dropdown-picker';
 
 export default function CreateAppointment() {
   const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
@@ -23,13 +24,28 @@ export default function CreateAppointment() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
+  const [doctorId, setDoctorId] = useState('');
+  const [doctorItems, setDoctorItems] = useState<any[]>([]);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      const snap = await getDocs(collection(db, 'doctors'));
+      const list = snap.docs.map(doc => ({
+        label: `${doc.data().name} - ${doc.data().specialty}`,
+        value: doc.data().userId,
+      }));
+      setDoctorItems(list);
+    };
+    fetchDoctors();
+  }, []);
 
   if (guardLoading) return <LoadingScreen message="Cargando acceso..." />;
   if (!allowed) return null;
 
   const handleSubmit = async () => {
-    if (!date || !reason.trim()) {
-      Alert.alert('Error', 'Por favor selecciona una fecha y escribe el motivo.');
+    if (!date || !reason.trim() || !doctorId) {
+      Alert.alert('Error', 'Completa todos los campos, incluyendo el médico.');
       return;
     }
 
@@ -40,6 +56,8 @@ export default function CreateAppointment() {
     }
 
     const uid = auth.currentUser?.uid;
+    const patientName = auth.currentUser?.displayName || 'Paciente';
+
     if (!uid) {
       Alert.alert('Error', 'Sesión no válida.');
       return;
@@ -49,11 +67,22 @@ export default function CreateAppointment() {
     try {
       await addDoc(collection(db, 'appointments'), {
         patientId: uid,
+        doctorId,
+        patientName,
         date: date.toISOString(),
         reason,
         status: 'pendiente',
       });
-      Alert.alert('Éxito', 'Cita agendada correctamente.');
+
+      await addDoc(collection(db, 'notifications'), {
+        doctorId,
+        message: `Nueva cita agendada por ${patientName}`,
+        type: 'info',
+        read: false,
+        createdAt: new Date(),
+      });
+
+      Alert.alert('Éxito', 'Cita agendada y notificación enviada.');
       router.replace('/(tabs)/patient/appointments');
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -139,6 +168,21 @@ export default function CreateAppointment() {
           }}
         />
       </View>
+
+      {/* Selección de doctor con DropDownPicker */}
+      <Text style={{ marginBottom: 8 }}>Selecciona un médico</Text>
+      <DropDownPicker
+        open={open}
+        value={doctorId}
+        items={doctorItems}
+        setOpen={setOpen}
+        setValue={setDoctorId}
+        setItems={setDoctorItems}
+        placeholder="Selecciona un médico"
+        style={{ backgroundColor: '#fff', borderColor: '#5A5CFF', marginBottom: 24 }}
+        textStyle={{ color: '#000' }}
+        dropDownContainerStyle={{ borderColor: '#5A5CFF' }}
+      />
 
       {/* Botón */}
       <TouchableOpacity

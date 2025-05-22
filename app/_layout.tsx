@@ -2,7 +2,8 @@
 import { Slot, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { useAuth } from '../hooks/useAuth'; // ajusta si está en otra ruta
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useAuth } from '../hooks/useAuth';
 
 export default function RootLayout() {
   const { user, loading } = useAuth();
@@ -20,11 +21,17 @@ export default function RootLayout() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
-      </View>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" />
+        </View>
+      </GestureHandlerRootView>
     );
   }
 
-  return <Slot />;
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Slot />
+    </GestureHandlerRootView>
+  );
 }

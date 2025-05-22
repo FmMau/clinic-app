@@ -1,12 +1,18 @@
 import { HapticTab } from '@/components/HapticTab';
 import { AnimatedTabIcon } from '@/components/ui/AnimatedTabIcon';
+import LoadingScreen from '@/components/ui/LoadingScreen';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 
-export default function DoctorLayout() {
+export default function DoctorTabsLayout() {
   const colorScheme = useColorScheme();
+  const { loading: guardLoading, allowed } = useRoleGuard(['doctor']);
+
+  if (guardLoading) return <LoadingScreen message="Validando acceso..." />;
+  if (!allowed) return null;
 
   return (
     <Tabs
@@ -27,9 +33,27 @@ export default function DoctorLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Inicio',
           tabBarIcon: ({ color, size, focused }) => (
             <AnimatedTabIcon name="home-outline" size={size} color={color} focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="consultation"
+        options={{
+          title: 'Diagnostico',
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon name="telescope-outline" size={size} color={color} focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="records"
+        options={{
+          title: 'Historiales',
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon name="document-text-outline" size={size} color={color} focused={focused} />
           ),
         }}
       />
