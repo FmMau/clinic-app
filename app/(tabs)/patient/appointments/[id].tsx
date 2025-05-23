@@ -5,7 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import {
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
 
 export default function AppointmentDetail() {
   const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
@@ -31,7 +36,7 @@ export default function AppointmentDetail() {
   if (!allowed) return null;
   if (!appointment) return <Text style={{ padding: 20 }}>Cita no encontrada</Text>;
 
-  const dateObj = new Date(appointment.date);
+  const dateObj = appointment.date?.toDate?.() ?? new Date();
   const dateStr = dateObj.toLocaleDateString('es-MX', {
     year: 'numeric',
     month: 'long',
@@ -41,6 +46,8 @@ export default function AppointmentDetail() {
     hour: '2-digit',
     minute: '2-digit',
   });
+
+  const coords = appointment.coordinates;
 
   return (
     <ScrollView style={{ flex: 1, padding: 24, backgroundColor: '#fff' }}>
@@ -74,7 +81,7 @@ export default function AppointmentDetail() {
           </View>
           <View>
             <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#333' }}>
-              Dr. {appointment.doctor || 'N/A'}
+              {appointment.doctor || 'N/A'}
             </Text>
             <Text style={{ color: '#888' }}>{appointment.specialty || 'Especialidad'}</Text>
           </View>
@@ -86,22 +93,43 @@ export default function AppointmentDetail() {
 
         <Text style={{ color: '#444', marginBottom: 12 }}>
           <Text style={{ fontWeight: 'bold' }}>Ubicación:</Text>{' '}
-          {appointment.location || 'Clínica Central'}
+          {appointment.location && appointment.location !== 'Ubicación no especificada'
+            ? appointment.location
+            : 'Clínica Central'}
         </Text>
 
-        <View
-          style={{
-            height: 120,
-            borderRadius: 8,
-            backgroundColor: '#EEE',
-            overflow: 'hidden',
-          }}
-        >
-          <Text style={{ padding: 16, color: '#aaa', textAlign: 'center' }}>
-            [Aquí iría un mapa]
-          </Text>
-        </View>
+        {coords?.latitude && coords?.longitude ? (
+          <MapView
+            style={{
+              width: '100%',
+              height: 200,
+              borderRadius: 8,
+            }}
+            initialRegion={{
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              latitudeDelta: 0.005,
+              longitudeDelta: 0.005,
+            }}
+          >
+            <Marker coordinate={{ latitude: coords.latitude, longitude: coords.longitude }} />
+          </MapView>
+        ) : (
+          <View
+            style={{
+              height: 120,
+              borderRadius: 8,
+              backgroundColor: '#EEE',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ color: '#aaa', textAlign: 'center' }}>
+              Ubicación no disponible
+            </Text>
+          </View>
+        )}
       </View>
     </ScrollView>
   );
-}
+} 

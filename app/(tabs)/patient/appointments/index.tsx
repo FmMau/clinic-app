@@ -2,17 +2,19 @@ import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import { usePathname, useRouter } from 'expo-router';
 import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
   where,
 } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -25,26 +27,51 @@ export default function AllAppointments() {
   const { loading, allowed } = useRoleGuard(['paciente']);
   const router = useRouter();
   const [appointments, setAppointments] = useState<any[]>([]);
-
+  const [doctorMap, setDoctorMap] = useState<Record<string, string>>({});
   const uid = auth.currentUser?.uid;
+  const pathname = usePathname();
 
-  useEffect(() => {
-    if (!uid || !allowed) return;
 
-    const q = query(
-      collection(db, 'appointments'),
-      where('patientId', '==', uid),
-      where('status', '==', 'pendiente'),
-      orderBy('date', 'asc')
-    );
+  // 👉 Esto se ejecuta al volver a la pantalla
+  useFocusEffect(
+    useCallback(() => {
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setAppointments(data);
-    });
+      if (pathname.includes('[id]')) {
+        // 🧹 Si por error estamos en el detalle dentro de la vista de index, redirige limpio
+        router.replace('/(tabs)/patient/appointments');
+        return;
+      }
 
-    return () => unsubscribe();
-  }, [uid, allowed]);
+      if (!uid || !allowed) return;
+
+      // 🔁 Obtener doctores una sola vez por sesión
+      const fetchDoctors = async () => {
+        const snap = await getDocs(collection(db, 'doctors'));
+        const map: Record<string, string> = {};
+        snap.docs.forEach((doc) => {
+          const data = doc.data();
+          map[doc.id] = data.name || 'Médico';
+        });
+        setDoctorMap(map);
+      };
+
+      fetchDoctors();
+
+      // 🔁 Suscripción en tiempo real
+      const q = query(
+        collection(db, 'appointments'),
+        where('patientId', '==', uid),
+        orderBy('date', 'asc')
+      );
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        setAppointments(data);
+      });
+
+      return () => unsubscribe();
+    }, [uid, allowed])
+  );
 
   const cancelAppointment = (id: string) => {
     Alert.alert('Cancelar cita', '¿Deseas eliminar esta cita permanentemente?', [
@@ -72,23 +99,30 @@ export default function AllAppointments() {
       style={{ flex: 1, backgroundColor: '#fff', paddingHorizontal: 24 }}
       contentContainerStyle={{ paddingTop: 24, paddingBottom: 80 }}
     >
-      <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 20 }}>Próximas Citas</Text>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 20 }}>Tus Citas</Text>
 
       {appointments.length === 0 && (
-        <Text style={{ color: '#999' }}>No tienes citas pendientes.</Text>
+        <Text style={{ color: '#999' }}>No tienes citas registradas.</Text>
       )}
 
       {appointments.map((a) => {
-        const dateObj = a.date.toDate(); // ✅ Convertir Timestamp a Date
-        const dateStr = dateObj.toLocaleDateString('es-MX', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
-        });
-        const timeStr = dateObj.toLocaleTimeString('es-MX', {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
+        const dateObj = a.date?.toDate?.();
+        const dateStr = dateObj
+          ? dateObj.toLocaleDateString('es-MX', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })
+          : 'Fecha no disponible';
+
+        const timeStr = dateObj
+          ? dateObj.toLocaleTimeString('es-MX', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : 'Hora no disponible';
+
+        const doctorName = doctorMap[a.doctorId] || 'Médico';
 
         return (
           <TouchableOpacity
@@ -114,16 +148,18 @@ export default function AllAppointments() {
                 style={{ marginRight: 8 }}
               />
               <Text style={{ fontWeight: 'bold', color: '#333' }}>
-                Dr. {a.doctor || 'Consulta'}
+                {doctorName}
               </Text>
             </View>
 
             <Text style={{ color: '#333', marginBottom: 4 }}>Fecha: {dateStr}</Text>
-            <Text style={{ color: '#333', marginBottom: 12 }}>Hora: {timeStr}</Text>
+            <Text style={{ color: '#333', marginBottom: 8 }}>Hora: {timeStr}</Text>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <StatusBadge status={a.status} />
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
               <TouchableOpacity
-                onPress={() => router.push(`/(tabs)/patient/appointments/${a.id}?edit=1`)}
+                onPress={() => router.push(`/(tabs)/patient/appointments/${a.id}/edit`)}
                 style={{
                   backgroundColor: '#5A5CFF',
                   paddingVertical: 8,
@@ -157,5 +193,35 @@ export default function AllAppointments() {
         );
       })}
     </ScrollView>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  let color = '#999';
+  let label = 'Estado desconocido';
+
+  switch (status) {
+    case 'pendiente':
+      color = '#D97706';
+      label = 'Pendiente';
+      break;
+    case 'confirmada':
+      color = '#10B981';
+      label = 'Confirmada';
+      break;
+    case 'cancelada':
+      color = '#EF4444';
+      label = 'Cancelada';
+      break;
+    case 'completada':
+      color = '#3B82F6';
+      label = 'Completada';
+      break;
+  }
+
+  return (
+    <Text style={{ color, fontWeight: '600' }}>
+      {label}
+    </Text>
   );
 }

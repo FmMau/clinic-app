@@ -8,7 +8,9 @@ import { Alert, TouchableOpacity, View } from 'react-native';
 export default function AppointmentsLayout() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { role } = useUserRole();
+  const { role, loading } = useUserRole();
+
+  if (loading) return null; // Puedes mostrar un loader si prefieres
 
   const handleDelete = async () => {
     Alert.alert('Eliminar cita', '¿Deseas eliminar esta cita permanentemente?', [
@@ -34,16 +36,11 @@ export default function AppointmentsLayout() {
       screenOptions={{
         headerShown: true,
         animation: 'slide_from_right',
-        headerStyle: {
-          backgroundColor: '#5A5CFF',
-        },
+        headerStyle: { backgroundColor: '#5A5CFF' },
         headerTintColor: '#FFFFFF',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        headerTitleStyle: { fontWeight: 'bold' },
       }}
     >
-      {/* Listado de citas */}
       <Stack.Screen
         name="index"
         options={{
@@ -60,23 +57,29 @@ export default function AppointmentsLayout() {
         }}
       />
 
-      {/* Formulario de creación */}
       <Stack.Screen
         name="create"
-        options={{
-          title: 'Agendar cita',
-        }}
+        options={{ title: 'Agendar cita' }}
       />
 
-      {/* Detalle de cita */}
       <Stack.Screen
         name="[id]"
         options={{
           title: 'Detalles',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/patient/appointments')}
+              style={{ paddingLeft: 16 }}
+            >
+              <Ionicons name="arrow-back-outline" size={24} color="#fff" />
+            </TouchableOpacity>
+          ),
           headerRight: () =>
             role === 'paciente' && (
               <View style={{ flexDirection: 'row', gap: 12, marginRight: 12 }}>
-                <TouchableOpacity onPress={() => router.push(`/(tabs)/patient/appointments/${id}/edit`)}>
+                <TouchableOpacity
+                  onPress={() => router.push(`/(tabs)/patient/appointments/${id}/edit`)}
+                >
                   <Ionicons name="create-outline" size={22} color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleDelete}>
@@ -87,12 +90,9 @@ export default function AppointmentsLayout() {
         }}
       />
 
-      {/* Edición */}
       <Stack.Screen
         name="[id]/edit"
-        options={{
-          title: 'Editar cita',
-        }}
+        options={{ title: 'Editar cita' }}
       />
     </Stack>
   );

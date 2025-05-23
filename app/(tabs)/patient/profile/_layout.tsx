@@ -6,8 +6,11 @@ import { signOut } from 'firebase/auth';
 import { TouchableOpacity } from 'react-native';
 
 export default function PatientLayout() {
-  const router = useRouter();
-  const { role } = useUserRole(); // 👈 para condicionar botón
+  const router = useRouter(); 
+  const { role, loading } = useUserRole();
+
+if (loading) return null; // o un loader
+
 
   const handleLogout = async () => {
     try {
@@ -32,11 +35,11 @@ export default function PatientLayout() {
         options={{
           title: 'Perfil del paciente',
           headerRight: () =>
-            role === 'paciente' && (
+            !loading && role === 'paciente' ? (
               <TouchableOpacity onPress={handleLogout} style={{ marginRight: 16 }}>
                 <Ionicons name="log-out-outline" size={24} color="#fff" />
               </TouchableOpacity>
-            ),
+            ) : null,          
         }}
       />
       <Stack.Screen

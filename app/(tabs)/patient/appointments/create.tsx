@@ -187,65 +187,79 @@ export default function CreateAppointment() {
       Alert.alert('Error', 'Completa todos los campos, incluyendo fecha y horario.');
       return;
     }
-
+  
     const now = new Date();
     if (selectedSlot.getTime() <= now.getTime()) {
       Alert.alert('Error', 'La fecha y hora deben ser futuras.');
       return;
     }
-
+  
     const uid = auth.currentUser?.uid;
     const patientName = auth.currentUser?.displayName || 'Paciente';
-
+  
     if (!uid) {
       Alert.alert('Error', 'Sesión no válida.');
       return;
     }
-
+  
     setLoading(true);
     try {
-      await addDoc(collection(db, 'appointments'), {
-        patientId: uid,
-        doctorId,
-        patientName,
-        date: Timestamp.fromDate(selectedSlot),
-        reason,
-        status: 'pendiente',
-      });
-
       const doctorSnap = await getDocs(
         query(collection(db, 'doctors'), where('userId', '==', doctorId))
       );
+  
       const doctorData = doctorSnap.docs[0]?.data();
-      const expoPushToken = doctorData?.expoPushToken;
-
+  
+      if (!doctorData) {
+        throw new Error('No se pudo obtener la información del doctor.');
+      }
+  
+      const newAppointment = {
+        patientId: uid,
+        patientName,
+        doctorId,
+        doctor: doctorData.name || 'Médico',
+        specialty: doctorData.specialty || 'General',
+        location: doctorData.location || 'Ubicación no especificada',
+        coordinates: doctorData.coordinates || null,
+        date: Timestamp.fromDate(selectedSlot),
+        reason,
+        status: 'pendiente',
+        createdAt: Timestamp.now(),
+      };
+  
+      await addDoc(collection(db, 'appointments'), newAppointment);
+  
+      // 🔔 Notificación push al doctor
+      const expoPushToken = doctorData.expoPushToken;
       if (expoPushToken) {
         const hora = selectedSlot.toLocaleTimeString('es-MX', {
           hour: '2-digit',
           minute: '2-digit',
         });
-
+  
         const fecha = selectedSlot.toLocaleDateString('es-MX', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
         });
-
+  
         await sendPushNotification(
           expoPushToken,
           'Nueva cita agendada',
           `Consulta de ${patientName} para el ${fecha} a las ${hora}`
         );
       }
-
-      Alert.alert('Éxito', 'Cita agendada y notificación enviada.');
+  
+      Alert.alert('Éxito', 'Cita agendada correctamente.');
       router.replace('/(tabs)/patient/appointments');
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      console.error(error);
+      Alert.alert('Error', error.message || 'No se pudo agendar la cita.');
     } finally {
       setLoading(false);
     }
-  };
+  };  
 
   return (
     <KeyboardAvoidingView

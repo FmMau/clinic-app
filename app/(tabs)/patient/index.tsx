@@ -41,7 +41,7 @@ export default function PatientDashboard() {
       query(
         collection(db, 'medicalRecords'),
         where('patientId', '==', uid),
-        orderBy('date', 'desc')
+        orderBy('createdAt', 'desc')
       ),
       (snapshot) => {
         const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -94,27 +94,68 @@ export default function PatientDashboard() {
       </TouchableOpacity>
 
       <Section icon="calendar-outline" title="Próximas Citas">
-        {appointments.map((a) => (
-          <TouchableOpacity key={a.id} onPress={() => router.push(`/(tabs)/patient/appointments/${a.id}`)}>
-            <Card title={a.doctor || 'Consulta'} subtitle={formatDate(a.date)} />
-          </TouchableOpacity>
-        ))}
+        {appointments.length === 0 ? (
+          <Text style={{ color: '#999' }}>No tienes citas agendadas.</Text>
+        ) : (
+          appointments.map((a) => (
+            <TouchableOpacity key={a.id} onPress={() => router.push(`/(tabs)/patient/appointments/${a.id}`)}>
+              <Card
+                title={a.doctor || 'Consulta médica'}
+                subtitle={a.date?.toDate ? formatDate(a.date.toDate()) : 'Sin fecha'}
+              />
+            </TouchableOpacity>
+          ))
+        )}
       </Section>
 
       <Section icon="medkit-outline" title="Historial Clínico">
-        {records.map((r) => (
-          <TouchableOpacity key={r.id} onPress={() => router.push(`/(tabs)/patient/records/${r.id}`)}>
-            <Card title={r.title} subtitle={`Resultado: ${r.result}`} />
-          </TouchableOpacity>
-        ))}
+        {records.length === 0 ? (
+          <Text style={{ color: '#999' }}>No hay historial disponible.</Text>
+        ) : (
+          records.map((r) => (
+            <TouchableOpacity key={r.id} onPress={() => router.push(`/(tabs)/patient/records/${r.id}`)}>
+              <Card
+                title={r.diagnosis || 'Consulta sin diagnóstico'}
+                subtitle={r.createdAt?.seconds
+                  ? `Fecha: ${formatDate(new Date(r.createdAt.seconds * 1000))}`
+                  : 'Fecha no disponible'}
+              />
+            </TouchableOpacity>
+          ))
+        )}
       </Section>
 
       <Section icon="card-outline" title="Pagos Realizados">
-        {payments.map((p) => (
-          <TouchableOpacity key={p.id} onPress={() => router.push(`/(tabs)/patient/payments/${p.id}`)}>
-            <Card title={p.concept} subtitle={`Monto: $${p.amount}`} />
-          </TouchableOpacity>
-        ))}
+        {payments.length === 0 ? (
+          <Text style={{ color: '#999' }}>Aún no has realizado pagos.</Text>
+        ) : (
+          payments.map((p) => (
+            <TouchableOpacity
+              key={p.id}
+              onPress={() => {
+                if (p.status === 'pendiente') {
+                  router.push(`/(tabs)/patient/payments/${p.id}/pay`);
+                } else if (p.status === 'pagado' && !p.rating) {
+                  router.push(`/(tabs)/patient/payments/${p.id}/review`);
+                } else {
+                  router.push(`/(tabs)/patient/payments/${p.id}`);
+                }
+              }}
+            >
+              <Card
+                title={p.concept || 'Pago registrado'}
+                subtitle={`Monto: $${p.amount || 0}`}
+                badge={
+                  p.status === 'pendiente'
+                    ? 'Pendiente de pago'
+                    : !p.rating && p.status === 'pagado'
+                    ? 'Falta valoración'
+                    : undefined
+                }
+              />
+            </TouchableOpacity>
+          ))
+        )}
       </Section>
     </ScrollView>
   );
@@ -140,7 +181,15 @@ function Section({
   );
 }
 
-function Card({ title, subtitle }: { title: string; subtitle: string }) {
+function Card({
+  title,
+  subtitle,
+  badge,
+}: {
+  title: string;
+  subtitle: string;
+  badge?: string;
+}) {
   return (
     <View
       style={{
@@ -157,13 +206,15 @@ function Card({ title, subtitle }: { title: string; subtitle: string }) {
     >
       <Text style={{ color: '#5A5CFF', fontWeight: 'bold', marginBottom: 4 }}>{title}</Text>
       <Text style={{ color: '#333' }}>{subtitle}</Text>
+      {badge && (
+        <Text style={{ marginTop: 6, color: '#D97706', fontWeight: '600' }}>{badge}</Text>
+      )}
     </View>
   );
 }
 
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString('es-MX', {
+function formatDate(date: Date) {
+  return date.toLocaleString('es-MX', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
