@@ -79,7 +79,7 @@ export default function AllAppointments() {
       )}
 
       {appointments.map((a) => {
-        const dateObj = new Date(a.date);
+        const dateObj = a.date.toDate(); // ✅ Convertir Timestamp a Date
         const dateStr = dateObj.toLocaleDateString('es-MX', {
           day: 'numeric',
           month: 'short',
