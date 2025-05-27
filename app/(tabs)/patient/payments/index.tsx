@@ -33,7 +33,7 @@ export default function PaymentsIndex() {
     const q = query(
       paymentsRef,
       where('patientId', '==', user.uid),
-      orderBy('date', 'desc')
+      orderBy('createdAt', 'desc')
     );
 
     const unsubscribe = onSnapshot(

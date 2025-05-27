@@ -1,27 +1,37 @@
 import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { useState } from 'react';
+import { addDoc, collection, doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 import {
-    Alert,
-    ScrollView, StyleSheet, Text,
-    TextInput,
-    TouchableOpacity
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
 } from 'react-native';
 
 export default function CreatePayment() {
   const router = useRouter();
-  const {
-    patientId,
-    doctorName,
-    specialty,
-    location,
-  } = useLocalSearchParams();
+  const { patientId } = useLocalSearchParams();
+  const [doctorProfile, setDoctorProfile] = useState<any>(null);
 
   const [amount, setAmount] = useState('');
   const [concept, setConcept] = useState('Consulta médica');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchDoctor = async () => {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
+
+      const snap = await getDoc(doc(db, 'doctors', uid));
+      if (snap.exists()) setDoctorProfile(snap.data());
+    };
+
+    fetchDoctor();
+  }, []);
 
   const handleSubmit = async () => {
     if (!amount || !concept || !patientId) {
@@ -31,14 +41,15 @@ export default function CreatePayment() {
 
     try {
       setLoading(true);
+
       await addDoc(collection(db, 'payments'), {
         amount: parseFloat(amount),
         concept,
         patientId,
         doctorId: auth.currentUser?.uid || '',
-        doctorName: doctorName || 'Dr. Desconocido',
-        specialty: specialty || '',
-        location: location || '',
+        doctorName: doctorProfile?.name || 'Dr. Desconocido',
+        specialty: doctorProfile?.specialty || '',
+        location: doctorProfile?.location || '',
         status: 'pendiente',
         createdAt: serverTimestamp(),
         rating: null,
@@ -48,7 +59,7 @@ export default function CreatePayment() {
       });
 
       Alert.alert('Éxito', 'Pago creado exitosamente.');
-      router.push('/(tabs)/doctor'); // ajusta destino si es necesario
+      router.push('/(tabs)/doctor'); // Ajusta ruta si necesitas volver al dashboard del doctor
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'No se pudo crear el pago.');
@@ -67,13 +78,25 @@ export default function CreatePayment() {
       <TextInput value={String(patientId || '')} editable={false} style={styles.input} />
 
       <Text style={styles.label}>Nombre del Doctor</Text>
-      <TextInput value={String(doctorName || '')} editable={false} style={styles.input} />
+      <TextInput
+        value={doctorProfile?.name || 'Cargando...'}
+        editable={false}
+        style={styles.input}
+      />
 
       <Text style={styles.label}>Especialidad</Text>
-      <TextInput value={String(specialty || '')} editable={false} style={styles.input} />
+      <TextInput
+        value={doctorProfile?.specialty || ''}
+        editable={false}
+        style={styles.input}
+      />
 
       <Text style={styles.label}>Ubicación</Text>
-      <TextInput value={String(location || '')} editable={false} style={styles.input} />
+      <TextInput
+        value={doctorProfile?.location || ''}
+        editable={false}
+        style={styles.input}
+      />
 
       <Text style={styles.label}>Concepto</Text>
       <TextInput
@@ -115,15 +138,15 @@ export default function CreatePayment() {
 }
 
 const styles = StyleSheet.create({
-    label: {
-      fontWeight: 'bold',
-      marginBottom: 4,
-      marginTop: 12,
-    },
-    input: {
-      borderWidth: 1,
-      borderColor: '#ddd',
-      borderRadius: 10,
-      padding: 12,
-    },
-  });
+  label: {
+    fontWeight: 'bold',
+    marginBottom: 4,
+    marginTop: 12,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    padding: 12,
+  },
+});

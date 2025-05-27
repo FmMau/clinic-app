@@ -40,12 +40,12 @@ export default function ConsultationDetail() {
 
   const handleSave = async () => {
     const doctorId = auth.currentUser?.uid;
-
+  
     if (!id || !diagnosis.trim() || !doctorId) {
       Alert.alert('Error', 'Faltan datos del paciente, diagnóstico o doctor.');
       return;
     }
-
+  
     const record = {
       patientId: id,
       diagnosis: diagnosis.trim(),
@@ -54,16 +54,17 @@ export default function ConsultationDetail() {
       doctorId,
       createdAt: Timestamp.now(),
     };
-
+  
     try {
       await setDoc(doc(db, 'medicalRecords', generateId()), record);
-      Alert.alert('Diagnóstico guardado', 'El historial se guardó correctamente.');
-      router.back();
+      Alert.alert('Diagnóstico guardado', 'Redirigiendo a creación de pago...');
+      router.push(`/(tabs)/doctor/payments/create?patientId=${id}`);
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'No se pudo guardar el diagnóstico.');
     }
   };
+  
 
   if (loading) return <Text style={styles.status}>Cargando...</Text>;
   if (!patient) return <Text style={styles.status}>Paciente no encontrado</Text>;
