@@ -57,6 +57,15 @@ export default function DoctorTabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="payments"
+        options={{
+          title: 'Pagos',
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon name="cash-outline" size={size} color={color} focused={focused} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
