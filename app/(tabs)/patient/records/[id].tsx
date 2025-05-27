@@ -18,6 +18,8 @@ export default function RecordDetail() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const [record, setRecord] = useState<any>(null);
+  const [doctor, setDoctor] = useState<any>(null);
+  const [patient, setPatient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,7 +30,20 @@ export default function RecordDetail() {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        setRecord(docSnap.data());
+        const data = docSnap.data();
+        setRecord(data);
+
+        // Cargar doctor
+        if (data.doctorId) {
+          const doctorSnap = await getDoc(doc(db, 'doctors', data.doctorId));
+          if (doctorSnap.exists()) setDoctor(doctorSnap.data());
+        }
+
+        // Cargar paciente
+        if (data.patientId) {
+          const patientSnap = await getDoc(doc(db, 'patients', data.patientId));
+          if (patientSnap.exists()) setPatient(patientSnap.data());
+        }
       }
 
       setLoading(false);
@@ -42,24 +57,20 @@ export default function RecordDetail() {
   if (!record) return <Text style={{ padding: 20 }}>Registro no encontrado</Text>;
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
-      <Text style={styles.header}>
-        <Ionicons name="document-text-outline" size={20} color="#4F46E5" /> Detalle del Récord Médico
-      </Text>
-
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
       <Section icon="person-outline" title="Información del Paciente">
-        <Info label="Nombre" value={record.patientName || 'N/A'} />
-        <Info label="Fecha de nacimiento" value={record.patientBirthdate || 'N/A'} />
+        <Info label="Nombre" value={patient?.name || 'N/A'} />
+        <Info label="Fecha de nacimiento" value={formatDate(patient?.birthdate) || 'N/A'} />
         <Info label="Fecha del registro" value={formatDate(record.date || record.createdAt)} />
       </Section>
 
       <Section icon="medkit-outline" title="Médico Responsable">
-        <Info label="Nombre" value={record.doctor || 'No especificado'} />
-        <Info label="Especialidad" value={record.specialty || 'General'} />
+        <Info label="Nombre" value={doctor?.name || 'No especificado'} />
+        <Info label="Especialidad" value={doctor?.specialty || 'General'} />
       </Section>
 
       <Section icon="pulse-outline" title="Diagnóstico">
-        <Info label="Condición" value={record.condition || 'No especificado'} />
+        <Info label="Condición" value={record.condition || record.diagnosis || 'No especificado'} />
         <Info label="Gravedad" value={record.severity || 'No especificado'} />
       </Section>
 
@@ -72,7 +83,7 @@ export default function RecordDetail() {
 
       {record.notes && (
         <Section icon="chatbubble-ellipses-outline" title="Notas Adicionales">
-          <Text style={{ color: '#333', lineHeight: 20 }}>{record.notes}</Text>
+          <Text style={styles.notes}>{record.notes}</Text>
         </Section>
       )}
 
@@ -109,15 +120,16 @@ function Section({
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <View style={{ marginBottom: 6 }}>
-      <Text style={{ fontWeight: '600', color: '#555' }}>{label}</Text>
-      <Text style={{ color: '#111' }}>{value}</Text>
+    <View style={{ marginBottom: 10 }}>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.value}>{value}</Text>
     </View>
   );
 }
 
-function formatDate(value: string | { seconds: number }) {
+function formatDate(value: string | { seconds: number } | undefined) {
   try {
+    if (!value) return 'N/A';
     const date =
       typeof value === 'string'
         ? new Date(value)
@@ -134,6 +146,11 @@ function formatDate(value: string | { seconds: number }) {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#f9f9f9',
+  },
   header: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -152,9 +169,22 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  notes: {
+    color: '#333',
+    lineHeight: 20,
+  },
+  label: {
+    fontWeight: '600',
+    color: '#555',
+    fontSize: 13,
+  },
+  value: {
+    color: '#111',
+    fontSize: 15,
   },
   button: {
     backgroundColor: '#4F46E5',

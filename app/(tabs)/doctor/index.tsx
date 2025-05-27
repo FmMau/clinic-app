@@ -123,7 +123,7 @@ export default function DoctorDashboard() {
 
             <TouchableOpacity
               style={[styles.button, { alignSelf: 'center', paddingHorizontal: 24 }]}
-              onPress={() => router.push('/(tabs)/doctor/consultation/select')}
+              onPress={() => router.push('/(tabs)/doctor/consultation')}
             >
               <Text style={{ color: '#fff', fontWeight: 'bold' }}>Agregar diagnóstico</Text>
             </TouchableOpacity>

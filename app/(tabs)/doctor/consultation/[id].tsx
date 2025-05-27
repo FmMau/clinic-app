@@ -1,8 +1,19 @@
-import { db } from '@/lib/firebase/firebaseConfig';
+import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+
+// 🔹 Generador de ID compatible con Expo Go
+const generateId = () => Math.random().toString(36).substring(2, 10) + Date.now();
 
 export default function ConsultationDetail() {
   const { id } = useLocalSearchParams(); // id del paciente
@@ -28,18 +39,30 @@ export default function ConsultationDetail() {
   }, [id]);
 
   const handleSave = async () => {
-    if (!id || !diagnosis) return;
+    const doctorId = auth.currentUser?.uid;
+
+    if (!id || !diagnosis.trim() || !doctorId) {
+      Alert.alert('Error', 'Faltan datos del paciente, diagnóstico o doctor.');
+      return;
+    }
 
     const record = {
       patientId: id,
-      diagnosis,
-      medications,
-      instructions,
+      diagnosis: diagnosis.trim(),
+      medications: medications.trim(),
+      instructions: instructions.trim(),
+      doctorId,
       createdAt: Timestamp.now(),
     };
 
-    await setDoc(doc(db, 'medicalRecords', crypto.randomUUID()), record);
-    router.back();
+    try {
+      await setDoc(doc(db, 'medicalRecords', generateId()), record);
+      Alert.alert('Diagnóstico guardado', 'El historial se guardó correctamente.');
+      router.back();
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'No se pudo guardar el diagnóstico.');
+    }
   };
 
   if (loading) return <Text style={styles.status}>Cargando...</Text>;
