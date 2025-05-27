@@ -66,5 +66,22 @@ export default function PayScreen() {
 
   if (!allowed) return null;
 
-  return <WebView source={{ uri: checkoutUrl }} />;
+  return (
+    <WebView
+      source={{ uri: checkoutUrl }}
+      startInLoadingState
+      javaScriptEnabled
+      domStorageEnabled
+      allowsBackForwardNavigationGestures={false}
+      onNavigationStateChange={(navState) => {
+        if (navState.url.includes('https://medaccess.com/stripe-success')) {
+          const url = new URL(navState.url);
+          const paymentId = url.searchParams.get('paymentId');
+          if (paymentId) {
+            router.replace(`/(tabs)/patient/payments/${paymentId}/review`);
+          }
+        }
+      }}
+    />
+  );
 }

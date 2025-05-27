@@ -53,7 +53,7 @@ export default function PatientDashboard() {
       query(
         collection(db, 'payments'),
         where('patientId', '==', uid),
-        orderBy('date', 'desc')
+        orderBy('createdAt', 'desc')
       ),
       (snapshot) => {
         const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));

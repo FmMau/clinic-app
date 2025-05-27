@@ -36,6 +36,13 @@ export default function PaymentAndReview() {
       }
 
       const data = docSnap.data();
+
+      if (data.status !== 'pagado') {
+        Alert.alert('Error', 'Este pago aún no ha sido completado.');
+        router.replace(`/(tabs)/patient/payments/${id}/pay`);
+        return;
+      }
+
       setAmount(data.amount);
       setLoading(false);
     };
@@ -44,10 +51,6 @@ export default function PaymentAndReview() {
   }, [id, allowed]);
 
   const handleSubmit = async () => {
-    if (!method) {
-      Alert.alert('Error', 'Por favor selecciona un método de pago.');
-      return;
-    }
 
     try {
       const docRef = doc(db, 'payments', id as string);
@@ -55,14 +58,13 @@ export default function PaymentAndReview() {
         method,
         rating,
         comments,
-        status: 'pagado',
       });
 
-      Alert.alert('Gracias', 'Tu pago y valoración han sido registrados.');
+      Alert.alert('Gracias', 'Tu valoración ha sido registrada.');
       router.push('/(tabs)/patient/payments');
     } catch (error) {
       console.error('Error al actualizar:', error);
-      Alert.alert('Error', 'No se pudo registrar el pago.');
+      Alert.alert('Error', 'No se pudo registrar la valoración.');
     }
   };
 

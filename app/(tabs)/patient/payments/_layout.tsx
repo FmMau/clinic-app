@@ -18,7 +18,7 @@ export default function PaymentsLayout() {
       <Stack.Screen name="index" options={{ title: 'Pagos' }} />
       <Stack.Screen name="[id]" options={{ title: 'Detalles del Pago' }} />
       <Stack.Screen name="[id]/review" options={{ title: 'Valoración del Servicio' }} />
-      <Stack.Screen name="[id]/pay" options={{ title: 'Realizar Pago' }} />
+      <Stack.Screen name="[id]/pay" options={{ title: '' }} />
     </Stack>
   );
 }

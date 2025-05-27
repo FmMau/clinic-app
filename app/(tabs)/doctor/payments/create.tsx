@@ -54,8 +54,6 @@ export default function CreatePayment() {
         createdAt: serverTimestamp(),
         rating: null,
         comments: '',
-        method: '',
-        review: '',
       });
 
       Alert.alert('Éxito', 'Pago creado exitosamente.');
