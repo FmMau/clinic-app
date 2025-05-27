@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -70,9 +71,16 @@ export default function PatientProfileEdit() {
 
     let birthdateToSave: Timestamp;
     try {
-      const tempDate = new Date(data.birthdate);
-      if (isNaN(tempDate.getTime())) throw new Error('Fecha inválida');
-      birthdateToSave = Timestamp.fromDate(tempDate);
+      const parsedDate =
+        birthdate instanceof Date
+          ? birthdate
+          : new Date(
+              typeof birthdate === 'string'
+                ? birthdate
+                : birthdate?.seconds * 1000 || Date.now()
+            );
+      if (isNaN(parsedDate.getTime())) throw new Error('Fecha inválida');
+      birthdateToSave = Timestamp.fromDate(parsedDate);
     } catch {
       Alert.alert('Error', 'Fecha de nacimiento inválida');
       return;
@@ -199,7 +207,7 @@ export default function PatientProfileEdit() {
 
       {renderField(
         "Fecha de nacimiento",
-        data.birthdate ? formatDate(data.birthdate) : '',
+        formatDate(getValidDate(data.birthdate)),
         undefined,
         true,
         true,
@@ -209,10 +217,10 @@ export default function PatientProfileEdit() {
       <DateTimePickerModal
         isVisible={isDateModalVisible}
         mode="date"
-        date={data.birthdate ? new Date(data.birthdate) : new Date()}
+        date={getValidDate(data.birthdate)}
         maximumDate={new Date()}
         onConfirm={(date) => {
-          setData({ ...data, birthdate: date.toISOString() });
+          setData({ ...data, birthdate: date });
           setDateModalVisible(false);
         }}
         onCancel={() => setDateModalVisible(false)}
@@ -274,25 +282,78 @@ function renderField(
 
 function formatDate(value: any) {
   try {
-    let date;
-    if (typeof value === 'string') date = new Date(value);
-    else if (value?.seconds) date = new Date(value.seconds * 1000);
-    else return 'Desconocida';
-    return date.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+    const date = new Date(value);
+    return date.toLocaleDateString('es-MX', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   } catch {
     return 'Desconocida';
   }
 }
 
+function getValidDate(value: any): Date {
+  if (!value) return new Date();
+  if (value instanceof Date) return value;
+  if (typeof value === 'string') return new Date(value);
+  if (value?.seconds) return new Date(value.seconds * 1000);
+  return new Date();
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, backgroundColor: '#fff' },
-  status: { padding: 20, fontSize: 16, textAlign: 'center' },
-  header: { alignItems: 'center', marginBottom: 24 },
-  avatar: { width: 100, height: 100, borderRadius: 50, marginBottom: 12 },
-  name: { fontSize: 22, fontWeight: 'bold' },
-  role: { fontSize: 16, color: '#6366f1' },
-  field: { marginBottom: 16 },
-  label: { fontWeight: 'bold', marginBottom: 4, color: '#333' },
+  container: {
+    flex: 1,
+    padding: 24,
+    backgroundColor: '#f9f9f9',
+  },
+  status: {
+    padding: 20,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.1,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  name: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  role: {
+    fontSize: 16,
+    color: '#4F46E5',
+    fontWeight: '500',
+  },
+  field: {
+    marginBottom: 16,
+  },
+  label: {
+    fontWeight: 'bold',
+    marginBottom: 4,
+    color: '#333',
+  },
   input: {
     borderWidth: 1,
     borderColor: '#eee',
@@ -300,10 +361,24 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: '#f4f4f4',
     color: '#444',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowOffset: { width: 0, height: 1 },
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
-  buttonRow: { marginTop: 24, alignItems: 'center' },
+  buttonRow: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
   editButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#4F46E5',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
