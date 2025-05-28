@@ -57,7 +57,7 @@ export default function CreatePayment() {
       });
 
       Alert.alert('Éxito', 'Pago creado exitosamente.');
-      router.push('/(tabs)/doctor');
+      router.replace('/(tabs)/doctor/payments');
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'No se pudo crear el pago.');
