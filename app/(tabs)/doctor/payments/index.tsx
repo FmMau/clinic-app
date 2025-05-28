@@ -1,6 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
@@ -8,11 +9,13 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 
 export default function DoctorPaymentsIndex() {
   const { user } = useAuth();
+  const router = useRouter();
   const [payments, setPayments] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -75,9 +78,11 @@ export default function DoctorPaymentsIndex() {
         {filtered.map((item) => (
           <Card
             key={item.id}
+            id={item.id}
             title={item.patientName || 'Paciente desconocido'}
             subtitle={`Fecha: ${formatDate(item.createdAt)}\n${item.concept}`}
             badge={`$${item.amount}`}
+            onPress={() => router.push(`/(tabs)/doctor/payments/${item.id}`)}
           />
         ))}
       </Section>
@@ -124,20 +129,24 @@ function Section({
 }
 
 function Card({
+  id,
   title,
   subtitle,
   badge,
+  onPress,
 }: {
+  id: string;
   title: string;
   subtitle: string;
   badge?: string;
+  onPress: () => void;
 }) {
   return (
-    <View style={styles.card}>
+    <TouchableOpacity onPress={onPress} style={styles.card}>
       <Text style={{ color: '#5A5CFF', fontWeight: 'bold', marginBottom: 4 }}>{title}</Text>
       <Text style={{ color: '#333', marginBottom: 6 }}>{subtitle}</Text>
       {badge && <Text style={{ fontWeight: '600', color: '#10B981' }}>{badge}</Text>}
-    </View>
+    </TouchableOpacity>
   );
 }
 
