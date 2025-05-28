@@ -9,7 +9,13 @@ import {
   where,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -26,7 +32,6 @@ export default function AdminDashboard() {
       todayStart.setHours(0, 0, 0, 0);
       const todayTimestamp = Timestamp.fromDate(todayStart);
 
-      // Usuarios
       const usersSnap = await getDocs(collection(db, 'users'));
       let active = 0;
       let newToday = 0;
@@ -41,7 +46,6 @@ export default function AdminDashboard() {
       setActiveUsers(active);
       setNewUsersToday(newToday);
 
-      // Citas de hoy
       const appointmentsSnap = await getDocs(
         query(collection(db, 'appointments'), where('date', '>=', todayTimestamp))
       );
@@ -69,8 +73,11 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 20 }}>
-      <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 16 }}>MedAccess</Text>
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Ionicons name="stats-chart-outline" size={22} color="#5A5CFF" style={{ marginRight: 8 }} />
+        <Text style={styles.title}>Panel del Administrador</Text>
+      </View>
 
       <Card
         title="Resumen de servicios diarios"
@@ -79,19 +86,22 @@ export default function AdminDashboard() {
 
       <Card title="Agenda médica completa">
         {appointmentsToday.length === 0 ? (
-          <Text>No hay citas para hoy</Text>
+          <Text style={styles.empty}>No hay citas para hoy</Text>
         ) : (
           appointmentsToday.map((appt, i) => (
-            <Text key={i}>
-              {new Date(appt.date.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {appt.doctor} - {appt.service}
+            <Text key={i} style={styles.appointment}>
+              {new Date(appt.date.toDate()).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })} – {appt.doctor} – {appt.service}
             </Text>
           ))
         )}
       </Card>
 
       <Card title="Control de usuarios">
-        <Text>Usuarios activos: {activeUsers}</Text>
-        <Text>Nuevos registros hoy: {newUsersToday}</Text>
+        <Text style={styles.info}>Usuarios activos: {activeUsers}</Text>
+        <Text style={styles.info}>Nuevos registros hoy: {newUsersToday}</Text>
       </Card>
 
       <Card
@@ -106,8 +116,8 @@ export default function AdminDashboard() {
 function Card({ title, description, children, onPress, icon }: any) {
   const content = (
     <View style={{ padding: 16 }}>
-      <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{title}</Text>
-      {description && <Text style={{ marginTop: 8 }}>{description}</Text>}
+      <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 6 }}>{title}</Text>
+      {description && <Text style={{ marginBottom: 10, color: '#333' }}>{description}</Text>}
       {children}
     </View>
   );
@@ -116,16 +126,7 @@ function Card({ title, description, children, onPress, icon }: any) {
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={onPress ? 0.7 : 1}
-      style={{
-        backgroundColor: '#fff',
-        marginBottom: 16,
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowOffset: { width: 0, height: 2 },
-        shadowRadius: 6,
-        elevation: 4,
-      }}
+      style={styles.card}
     >
       {icon && (
         <View style={{ position: 'absolute', top: 16, right: 16 }}>
@@ -136,3 +137,43 @@ function Card({ title, description, children, onPress, icon }: any) {
     </TouchableOpacity>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 20,
+    paddingTop: 40,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  appointment: {
+    color: '#333',
+    marginBottom: 4,
+  },
+  info: {
+    color: '#333',
+    marginBottom: 4,
+  },
+  empty: {
+    color: '#888',
+    fontStyle: 'italic',
+  },
+});

@@ -17,7 +17,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.fmmau.clinicapp"
     },
     "web": {
       "bundler": "metro",
@@ -39,9 +40,11 @@
     "experiments": {
       "typedRoutes": true
     },
+    "owner": "fmmau",
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "cf5e7c6a-37e8-4ed7-9ce9-2926bb313b50"
+        "projectId": "c0fd7c5d-39d8-455f-af77-2ecd78689305"
       }
     }
   }

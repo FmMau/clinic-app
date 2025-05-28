@@ -33,6 +33,24 @@ export default function AdminLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="reports"
+        options={{
+          title: 'Reportes',
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon name="document-text-outline" size={size} color={color} focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="doctors/create"
+        options={{
+          title: 'Doctores',
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon name="person-add-outline" size={size} color={color} focused={focused} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

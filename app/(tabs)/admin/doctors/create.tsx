@@ -1,18 +1,19 @@
 import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { useRouter } from 'expo-router';
 import {
-    createUserWithEmailAndPassword,
-    fetchSignInMethodsForEmail,
+  createUserWithEmailAndPassword,
+  fetchSignInMethodsForEmail,
 } from 'firebase/auth';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function CreateDoctorScreen() {
@@ -34,7 +35,6 @@ export default function CreateDoctorScreen() {
     setLoading(true);
 
     try {
-      // 🔍 Verificar si el correo ya está registrado
       const existing = await fetchSignInMethodsForEmail(auth, email);
       if (existing.length > 0) {
         Alert.alert('Este correo ya está registrado.');
@@ -42,12 +42,10 @@ export default function CreateDoctorScreen() {
         return;
       }
 
-      // ✅ Crear usuario en Firebase Auth
       const password = 'default123';
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const userId = userCredential.user.uid;
 
-      // 📥 Crear documento en "doctors"
       await addDoc(collection(db, 'doctors'), {
         userId,
         name,
@@ -72,10 +70,8 @@ export default function CreateDoctorScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 20 }}>
-      <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 16 }}>
-        Registrar Médico
-      </Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>Registrar Médico</Text>
 
       {[
         { label: 'Nombre completo', value: name, set: setName },
@@ -83,20 +79,14 @@ export default function CreateDoctorScreen() {
         { label: 'Correo electrónico', value: email, set: setEmail },
         { label: 'Teléfono', value: phone, set: setPhone },
         { label: 'Ubicación (opcional)', value: location, set: setLocation },
-      ].map(({ label, value, set }, index) => (
-        <View key={index} style={{ marginBottom: 14 }}>
-          <Text style={{ fontWeight: '500', marginBottom: 6 }}>{label}</Text>
+      ].map(({ label, value, set }, i) => (
+        <View key={i} style={styles.inputGroup}>
+          <Text style={styles.label}>{label}</Text>
           <TextInput
             value={value}
             onChangeText={set}
             placeholder={label}
-            style={{
-              borderWidth: 1,
-              borderColor: '#ccc',
-              borderRadius: 8,
-              padding: 12,
-              backgroundColor: '#fff',
-            }}
+            style={styles.input}
             autoCapitalize="none"
             keyboardType={label.includes('Correo') ? 'email-address' : 'default'}
           />
@@ -106,18 +96,49 @@ export default function CreateDoctorScreen() {
       <TouchableOpacity
         disabled={loading}
         onPress={handleSubmit}
-        style={{
-          backgroundColor: '#5A5CFF',
-          padding: 14,
-          borderRadius: 10,
-          alignItems: 'center',
-          marginTop: 16,
-        }}
+        style={styles.button}
       >
-        <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+        <Text style={styles.buttonText}>
           {loading ? 'Guardando...' : 'Registrar Médico'}
         </Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 24,
+    backgroundColor: '#fff',
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 24,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 10,
+    padding: 12,
+    backgroundColor: '#fff',
+  },
+  button: {
+    backgroundColor: '#5A5CFF',
+    padding: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+});
