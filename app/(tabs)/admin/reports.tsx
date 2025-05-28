@@ -113,23 +113,22 @@ export default function AdminReports() {
               data: last7Days.map((d) => (d.value > CHART_LIMIT ? d.value : 0)),
               color: (opacity = 1) => `rgba(255,0,0,${opacity})`,
             },
-          ]          
+          ],
         }}
         width={screenWidth - 20}
         height={220}
-        fromZero
-        showBarTops
         yAxisLabel=""
         yAxisSuffix=""
+        fromZero
+        segments={5}
+        showBarTops
         chartConfig={{
           ...chartConfig,
-          color: (opacity = 1) =>
-            last7Days.some((d) => d.value > CHART_LIMIT)
-              ? `rgba(255,0,0,${opacity})` // red
-              : `rgba(90,92,255,${opacity})`, // blue
+          decimalPlaces: 0,
         }}
         style={styles.chart}
       />
+
       <Text style={styles.kpiNote}>
         🔴 Alerta: se marca en rojo si se superan {CHART_LIMIT} citas por día.
       </Text>
