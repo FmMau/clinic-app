@@ -4,9 +4,10 @@ import { useLocalSearchParams } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
-    ScrollView,
-    Text,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 export default function DoctorPaymentDetail() {
@@ -36,8 +37,8 @@ export default function DoctorPaymentDetail() {
     fetchPayment();
   }, [id]);
 
-  if (loading) return <Text style={{ padding: 20 }}>Cargando...</Text>;
-  if (!payment) return <Text style={{ padding: 20 }}>Pago no encontrado</Text>;
+  if (loading) return <Text style={styles.status}>Cargando...</Text>;
+  if (!payment) return <Text style={styles.status}>Pago no encontrado</Text>;
 
   const {
     patientName,
@@ -55,14 +56,19 @@ export default function DoctorPaymentDetail() {
   const formatDate = (value: any) => {
     if (!value) return '';
     const date = new Date(value?.seconds * 1000);
-    return date.toLocaleDateString('es-MX');
+    return date.toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 24 }}>
-      <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 12 }}>
-        Detalle del Pago
-      </Text>
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Ionicons name="card-outline" size={22} color="#5A5CFF" style={{ marginRight: 8 }} />
+        <Text style={styles.title}>Detalle del Pago</Text>
+      </View>
 
       <Card>
         <Label title="Paciente" value={patientName || 'No disponible'} />
@@ -77,14 +83,10 @@ export default function DoctorPaymentDetail() {
 
       {comments ? (
         <>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', fontStyle: 'italic', marginTop: 24 }}>
-            Valoración del paciente
-          </Text>
+          <Text style={styles.sectionSubtitle}>Valoración del paciente</Text>
           <Card>
-            <Text style={{ fontStyle: 'italic', marginBottom: 8 }}>
-              "{comments}"
-            </Text>
-            <View style={{ flexDirection: 'row' }}>
+            <Text style={styles.comment}>"{comments}"</Text>
+            <View style={styles.rating}>
               {[...Array(5)].map((_, i) => (
                 <Ionicons
                   key={i}
@@ -103,18 +105,7 @@ export default function DoctorPaymentDetail() {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <View
-      style={{
-        backgroundColor: '#fff',
-        padding: 16,
-        borderRadius: 12,
-        marginTop: 12,
-        shadowColor: '#000',
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
-      }}
-    >
+    <View style={styles.card}>
       {children}
     </View>
   );
@@ -122,9 +113,64 @@ function Card({ children }: { children: React.ReactNode }) {
 
 function Label({ title, value }: { title: string; value: string }) {
   return (
-    <View style={{ marginBottom: 8 }}>
-      <Text style={{ fontWeight: 'bold', marginBottom: 2 }}>{title}</Text>
-      <Text>{value}</Text>
+    <View style={{ marginBottom: 10 }}>
+      <Text style={styles.label}>{title}</Text>
+      <Text style={styles.value}>{value}</Text>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 24,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  sectionSubtitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontStyle: 'italic',
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  label: {
+    fontWeight: '600',
+    color: '#5A5CFF',
+    marginBottom: 2,
+  },
+  value: {
+    color: '#333',
+  },
+  comment: {
+    fontStyle: 'italic',
+    marginBottom: 8,
+    color: '#333',
+  },
+  rating: {
+    flexDirection: 'row',
+  },
+  status: {
+    padding: 24,
+    textAlign: 'center',
+    color: '#333',
+  },
+});

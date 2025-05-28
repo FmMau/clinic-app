@@ -1,12 +1,14 @@
 import { useAuth } from '@/hooks/useAuth';
 import { db } from '@/lib/firebase/firebaseConfig';
+import { Ionicons } from '@expo/vector-icons';
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
-    ScrollView,
-    Text,
-    TextInput,
-    View
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
 export default function DoctorPaymentsIndex() {
@@ -18,9 +20,8 @@ export default function DoctorPaymentsIndex() {
   useEffect(() => {
     if (!user?.uid) return;
 
-    const paymentsRef = collection(db, 'payments');
     const q = query(
-      paymentsRef,
+      collection(db, 'payments'),
       where('doctorId', '==', user.uid),
       orderBy('createdAt', 'desc')
     );
@@ -38,96 +39,141 @@ export default function DoctorPaymentsIndex() {
   }, [user]);
 
   useEffect(() => {
-    if (!search.trim()) {
-      setFiltered(payments);
-    } else {
-      const s = search.toLowerCase();
-      setFiltered(
-        payments.filter((p) =>
-          p.patientName?.toLowerCase().includes(s)
-        )
-      );
-    }
+    const s = search.trim().toLowerCase();
+    setFiltered(
+      s
+        ? payments.filter((p) =>
+            p.patientName?.toLowerCase().includes(s)
+          )
+        : payments
+    );
   }, [search, payments]);
 
   const formatDate = (value: any) => {
     if (!value) return '';
     const date = new Date(value?.seconds * 1000);
-    return date.toLocaleDateString('es-MX');
+    return date.toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 20 }}>
-      <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 12 }}>
-        Pagos Pasados
-      </Text>
-
-      <TextInput
-        placeholder="Buscar paciente..."
-        value={search}
-        onChangeText={setSearch}
-        style={{
-          borderWidth: 1,
-          borderColor: '#ccc',
-          borderRadius: 10,
-          padding: 10,
-          marginBottom: 20,
-        }}
-      />
-
-      {filtered.map((item) => (
-        <View
-          key={item.id}
-          style={{
-            backgroundColor: '#fff',
-            padding: 16,
-            borderRadius: 12,
-            marginBottom: 12,
-            shadowColor: '#000',
-            shadowOpacity: 0.05,
-            shadowRadius: 4,
-            elevation: 2,
-          }}
-        >
-          <Text style={{ fontWeight: 'bold', fontSize: 16 }}>
-            {item.patientName || 'Paciente desconocido'}
-          </Text>
-          <Text style={{ color: '#555', marginBottom: 4 }}>{item.concept}</Text>
-          <Text style={{ color: '#999', marginBottom: 8 }}>
-            Fecha: {formatDate(item.createdAt)}
-          </Text>
-          <Text style={{ fontSize: 16, fontWeight: 'bold' }}>${item.amount}</Text>
+    <ScrollView style={{ flex: 1, backgroundColor: '#fff', padding: 20, paddingTop: 40 }}>
+      <Section icon="card-outline" title="Pagos realizados">
+        <View style={styles.searchBox}>
+          <Ionicons name="search-outline" size={20} color="#999" style={{ marginRight: 8 }} />
+          <TextInput
+            placeholder="Buscar paciente..."
+            value={search}
+            onChangeText={setSearch}
+            style={{ flex: 1, padding: 0 }}
+          />
         </View>
-      ))}
 
-      <Text style={{ fontSize: 18, fontWeight: 'bold', fontStyle: 'italic', marginVertical: 16 }}>
-        Valoraciones/Comentarios
-      </Text>
-
-      {payments
-        .filter((p) => p.rating && p.comments)
-        .map((p) => (
-          <View
-            key={p.id + '-review'}
-            style={{
-              backgroundColor: '#fff',
-              padding: 16,
-              borderRadius: 12,
-              marginBottom: 12,
-              shadowColor: '#000',
-              shadowOpacity: 0.05,
-              shadowRadius: 4,
-              elevation: 2,
-            }}
-          >
-            <Text style={{ fontStyle: 'italic', marginBottom: 8 }}>
-              "{p.comments}"
-            </Text>
-            <Text style={{ textAlign: 'right', color: '#4F46E5' }}>
-              – {p.patientName || 'Paciente'}
-            </Text>
-          </View>
+        {filtered.map((item) => (
+          <Card
+            key={item.id}
+            title={item.patientName || 'Paciente desconocido'}
+            subtitle={`Fecha: ${formatDate(item.createdAt)}\n${item.concept}`}
+            badge={`$${item.amount}`}
+          />
         ))}
+      </Section>
+
+      <Section icon="chatbubble-ellipses-outline" title="Valoraciones de pacientes">
+        {payments
+          .filter((p) => p.rating && p.comments)
+          .map((p) => (
+            <View key={p.id + '-review'} style={styles.commentCard}>
+              <Text style={{ fontStyle: 'italic', marginBottom: 8 }}>
+                "{p.comments}"
+              </Text>
+              <Text style={{ textAlign: 'right', color: '#5A5CFF', fontWeight: '600' }}>
+                – {p.patientName || 'Paciente'}
+              </Text>
+            </View>
+          ))}
+        {payments.filter((p) => p.rating && p.comments).length === 0 && (
+          <Text style={{ color: '#999' }}>Sin valoraciones aún.</Text>
+        )}
+      </Section>
     </ScrollView>
   );
 }
+
+function Section({
+  icon,
+  title,
+  children,
+}: {
+  icon: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={{ marginBottom: 32 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <Ionicons name={icon as any} size={20} color="#5A5CFF" style={{ marginRight: 8 }} />
+        <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function Card({
+  title,
+  subtitle,
+  badge,
+}: {
+  title: string;
+  subtitle: string;
+  badge?: string;
+}) {
+  return (
+    <View style={styles.card}>
+      <Text style={{ color: '#5A5CFF', fontWeight: 'bold', marginBottom: 4 }}>{title}</Text>
+      <Text style={{ color: '#333', marginBottom: 6 }}>{subtitle}</Text>
+      {badge && <Text style={{ fontWeight: '600', color: '#10B981' }}>{badge}</Text>}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  searchBox: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  card: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  commentCard: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+});

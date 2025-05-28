@@ -10,13 +10,13 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function CreatePayment() {
   const router = useRouter();
   const { patientId } = useLocalSearchParams();
   const [doctorProfile, setDoctorProfile] = useState<any>(null);
-
   const [amount, setAmount] = useState('');
   const [concept, setConcept] = useState('Consulta médica');
   const [loading, setLoading] = useState(false);
@@ -57,7 +57,7 @@ export default function CreatePayment() {
       });
 
       Alert.alert('Éxito', 'Pago creado exitosamente.');
-      router.push('/(tabs)/doctor'); // Ajusta ruta si necesitas volver al dashboard del doctor
+      router.push('/(tabs)/doctor');
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'No se pudo crear el pago.');
@@ -67,67 +67,26 @@ export default function CreatePayment() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 24 }}>
-      <Text style={{ fontSize: 24, fontWeight: 'bold', fontStyle: 'italic', marginBottom: 20 }}>
-        Crear Pago
-      </Text>
+    <ScrollView style={{ flex: 1, backgroundColor: '#fff', padding: 24 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+        <Ionicons name="card-outline" size={22} color="#5A5CFF" style={{ marginRight: 8 }} />
+        <Text style={{ fontSize: 20, fontWeight: 'bold' }}>Crear Pago</Text>
+      </View>
 
-      <Text style={styles.label}>ID del Paciente</Text>
-      <TextInput value={String(patientId || '')} editable={false} style={styles.input} />
-
-      <Text style={styles.label}>Nombre del Doctor</Text>
-      <TextInput
-        value={doctorProfile?.name || 'Cargando...'}
-        editable={false}
-        style={styles.input}
-      />
-
-      <Text style={styles.label}>Especialidad</Text>
-      <TextInput
-        value={doctorProfile?.specialty || ''}
-        editable={false}
-        style={styles.input}
-      />
-
-      <Text style={styles.label}>Ubicación</Text>
-      <TextInput
-        value={doctorProfile?.location || ''}
-        editable={false}
-        style={styles.input}
-      />
-
-      <Text style={styles.label}>Concepto</Text>
-      <TextInput
-        value={concept}
-        onChangeText={setConcept}
-        placeholder="Consulta médica"
-        style={styles.input}
-      />
-
-      <Text style={styles.label}>Monto</Text>
-      <TextInput
-        value={amount}
-        onChangeText={setAmount}
-        placeholder="$0.00"
-        keyboardType="decimal-pad"
-        style={styles.input}
-      />
+      <FormField label="ID del Paciente" value={String(patientId || '')} editable={false} />
+      <FormField label="Nombre del Doctor" value={doctorProfile?.name || 'Cargando...'} editable={false} />
+      <FormField label="Especialidad" value={doctorProfile?.specialty || ''} editable={false} />
+      <FormField label="Ubicación" value={doctorProfile?.location || ''} editable={false} />
+      <FormField label="Concepto" value={concept} onChangeText={setConcept} placeholder="Consulta médica" />
+      <FormField label="Monto" value={amount} onChangeText={setAmount} placeholder="$0.00" keyboardType="decimal-pad" />
 
       <TouchableOpacity
         onPress={handleSubmit}
         disabled={loading}
-        style={{
-          backgroundColor: '#4F46E5',
-          padding: 16,
-          borderRadius: 10,
-          alignItems: 'center',
-          flexDirection: 'row',
-          justifyContent: 'center',
-          marginTop: 24,
-        }}
+        style={styles.button}
       >
         <Ionicons name="send" size={20} color="#fff" style={{ marginRight: 8 }} />
-        <Text style={{ color: 'white', fontWeight: 'bold' }}>
+        <Text style={{ color: '#fff', fontWeight: 'bold' }}>
           {loading ? 'Enviando...' : 'Enviar Pago'}
         </Text>
       </TouchableOpacity>
@@ -135,16 +94,59 @@ export default function CreatePayment() {
   );
 }
 
+function FormField({
+  label,
+  value,
+  onChangeText,
+  editable = true,
+  placeholder,
+  keyboardType = 'default',
+}: {
+  label: string;
+  value: string;
+  onChangeText?: (text: string) => void;
+  editable?: boolean;
+  placeholder?: string;
+  keyboardType?: any;
+}) {
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        editable={editable}
+        placeholder={placeholder}
+        keyboardType={keyboardType}
+        style={[
+          styles.input,
+          !editable && { backgroundColor: '#F3F4F6', color: '#888' },
+        ]}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   label: {
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 4,
-    marginTop: 12,
+    fontSize: 14,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
     padding: 12,
+    fontSize: 15,
+  },
+  button: {
+    backgroundColor: '#5A5CFF',
+    paddingVertical: 14,
+    borderRadius: 10,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
   },
 });

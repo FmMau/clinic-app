@@ -1,4 +1,5 @@
 import { auth, db } from '@/lib/firebase/firebaseConfig';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
@@ -12,11 +13,10 @@ import {
   View,
 } from 'react-native';
 
-// 🔹 Generador de ID compatible con Expo Go
 const generateId = () => Math.random().toString(36).substring(2, 10) + Date.now();
 
 export default function ConsultationDetail() {
-  const { id } = useLocalSearchParams(); // id del paciente
+  const { id } = useLocalSearchParams(); // ID del paciente
   const router = useRouter();
   const [patient, setPatient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -40,12 +40,12 @@ export default function ConsultationDetail() {
 
   const handleSave = async () => {
     const doctorId = auth.currentUser?.uid;
-  
+
     if (!id || !diagnosis.trim() || !doctorId) {
       Alert.alert('Error', 'Faltan datos del paciente, diagnóstico o doctor.');
       return;
     }
-  
+
     const record = {
       patientId: id,
       diagnosis: diagnosis.trim(),
@@ -54,7 +54,7 @@ export default function ConsultationDetail() {
       doctorId,
       createdAt: Timestamp.now(),
     };
-  
+
     try {
       await setDoc(doc(db, 'medicalRecords', generateId()), record);
       Alert.alert('Diagnóstico guardado', 'Redirigiendo a creación de pago...');
@@ -64,21 +64,28 @@ export default function ConsultationDetail() {
       Alert.alert('Error', 'No se pudo guardar el diagnóstico.');
     }
   };
-  
 
   if (loading) return <Text style={styles.status}>Cargando...</Text>;
   if (!patient) return <Text style={styles.status}>Paciente no encontrado</Text>;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ gap: 24 }}>
-      {/* Datos del paciente */}
+      <View style={styles.sectionHeader}>
+        <Ionicons name="person-circle-outline" size={20} color="#5A5CFF" style={{ marginRight: 8 }} />
+        <Text style={styles.sectionTitle}>Datos del paciente</Text>
+      </View>
+
       <View style={styles.card}>
         <Text style={styles.label}>Nombre: <Text style={styles.value}>{patient.name}</Text></Text>
         <Text style={styles.label}>Edad: <Text style={styles.value}>{patient.age}</Text></Text>
         <Text style={styles.label}>Seguro: <Text style={styles.value}>{patient.insurance || 'N/A'}</Text></Text>
       </View>
 
-      {/* Diagnóstico */}
+      <View style={styles.sectionHeader}>
+        <Ionicons name="document-text-outline" size={20} color="#5A5CFF" style={{ marginRight: 8 }} />
+        <Text style={styles.sectionTitle}>Registrar diagnóstico</Text>
+      </View>
+
       <View style={styles.card}>
         <Text style={styles.inputLabel}>Diagnóstico</Text>
         <TextInput
@@ -108,8 +115,8 @@ export default function ConsultationDetail() {
         />
       </View>
 
-      {/* Guardar */}
       <TouchableOpacity style={styles.button} onPress={handleSave}>
+        <Ionicons name="checkmark-circle-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
         <Text style={{ color: '#fff', fontWeight: 'bold' }}>Guardar diagnóstico</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -121,19 +128,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 24,
   },
+  status: {
+    padding: 24,
+    textAlign: 'center',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 3,
     gap: 12,
-  },
-  status: {
-    padding: 24,
-    textAlign: 'center',
   },
   label: {
     fontWeight: 'bold',
@@ -158,5 +174,8 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
   },
 });
