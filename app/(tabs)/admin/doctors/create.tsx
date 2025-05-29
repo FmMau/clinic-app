@@ -1,11 +1,12 @@
 import { auth, db } from '@/lib/firebase/firebaseConfig';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import {
   createUserWithEmailAndPassword,
   fetchSignInMethodsForEmail,
 } from 'firebase/auth';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -15,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
 
 export default function CreateDoctorScreen() {
   const router = useRouter();
@@ -23,12 +25,31 @@ export default function CreateDoctorScreen() {
   const [specialty, setSpecialty] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [location, setLocation] = useState('');
+  const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [mapRegion, setMapRegion] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permiso denegado para acceder a la ubicación');
+        return;
+      }
+
+      const loc = await Location.getCurrentPositionAsync({});
+      setMapRegion({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    })();
+  }, []);
+
   const handleSubmit = async () => {
-    if (!name || !specialty || !email || !phone) {
-      Alert.alert('Faltan campos obligatorios');
+    if (!name || !specialty || !email || !phone || !coordinates) {
+      Alert.alert('Faltan campos obligatorios o ubicación');
       return;
     }
 
@@ -52,8 +73,7 @@ export default function CreateDoctorScreen() {
         email,
         phone,
         specialty,
-        location,
-        coordinates: null,
+        location: coordinates, // ubicación en el campo location
         role: 'doctor',
         expoPushToken: null,
         createdAt: serverTimestamp(),
@@ -70,7 +90,7 @@ export default function CreateDoctorScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 60 }]}>
       <Text style={styles.title}>Registrar Médico</Text>
 
       {[
@@ -78,7 +98,6 @@ export default function CreateDoctorScreen() {
         { label: 'Especialidad', value: specialty, set: setSpecialty },
         { label: 'Correo electrónico', value: email, set: setEmail },
         { label: 'Teléfono', value: phone, set: setPhone },
-        { label: 'Ubicación (opcional)', value: location, set: setLocation },
       ].map(({ label, value, set }, i) => (
         <View key={i} style={styles.inputGroup}>
           <Text style={styles.label}>{label}</Text>
@@ -92,6 +111,21 @@ export default function CreateDoctorScreen() {
           />
         </View>
       ))}
+
+      <Text style={styles.label}>Selecciona ubicación en el mapa</Text>
+      <View style={{ height: 300, marginBottom: 16 }}>
+        {mapRegion && (
+          <MapView
+            style={{ flex: 1 }}
+            region={mapRegion}
+            onPress={(e) => setCoordinates(e.nativeEvent.coordinate)}
+          >
+            {coordinates && (
+              <Marker coordinate={coordinates} />
+            )}
+          </MapView>
+        )}
+      </View>
 
       <TouchableOpacity
         disabled={loading}
