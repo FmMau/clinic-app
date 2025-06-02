@@ -68,6 +68,12 @@ export default function DoctorDashboard() {
     waitForAuthAndRegister();
   }, []);
 
+  // Mapa para acceso rápido de pacientes por id
+  const patientMap = patients.reduce<Record<string, string>>((acc, patient) => {
+    acc[patient.id] = patient.name || 'Paciente';
+    return acc;
+  }, {});
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#fff', padding: 20, paddingTop: 40 }}>
       <Text style={styles.header}>Bienvenid@, Doctor</Text>
@@ -84,10 +90,12 @@ export default function DoctorDashboard() {
               hour: '2-digit',
               minute: '2-digit',
             });
+            const patientName = patientMap[a.patientId] || 'Paciente';
+
             return (
               <Card
                 key={a.id}
-                title={`${timeStr} - ${a.patientName}`}
+                title={`${timeStr} - ${patientName}`}
                 subtitle={`Estado: ${a.status}`}
               />
             );
