@@ -5,6 +5,7 @@ import { auth, db, storage } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
+import { updatePassword } from 'firebase/auth';
 import { doc, getDoc, Timestamp, updateDoc } from 'firebase/firestore';
 import {
     getDownloadURL,
@@ -31,6 +32,8 @@ export default function DoctorProfileEdit() {
   const [uploading, setUploading] = useState(false);
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
   const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -89,6 +92,17 @@ export default function DoctorProfileEdit() {
       return;
     }
 
+    // Validar nueva contraseña si se escribió alguna
+    if (newPassword || confirmPassword) {
+      if (newPassword.length < 6) {
+        Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres.');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        Alert.alert('Error', 'Las contraseñas no coinciden.');
+        return;
+      }
+    }
 
     let birthdateToSave: Timestamp;
     try {
@@ -107,6 +121,7 @@ export default function DoctorProfileEdit() {
       const uid = auth.currentUser?.uid;
       if (!uid) return;
 
+      // Actualizar perfil en Firestore
       const docRef = doc(db, 'doctors', uid);
       const updatedData = {
         ...data,
@@ -115,11 +130,23 @@ export default function DoctorProfileEdit() {
       };
 
       await updateDoc(docRef, updatedData);
+
+      // Actualizar contraseña en Firebase Auth si corresponde
+      if (newPassword) {
+        if (auth.currentUser) {
+          await updatePassword(auth.currentUser, newPassword);
+        }
+      }
+
       Alert.alert('Éxito', 'Datos actualizados correctamente');
       router.back();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      Alert.alert('Error', 'No se pudieron guardar los cambios');
+      if (err.code === 'auth/requires-recent-login') {
+        Alert.alert('Error', 'Por seguridad, por favor vuelve a iniciar sesión y luego intenta de nuevo.');
+      } else {
+        Alert.alert('Error', 'No se pudieron guardar los cambios');
+      }
     }
   };
 
@@ -181,8 +208,6 @@ export default function DoctorProfileEdit() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Editar Perfil</Text>
-
       <TouchableOpacity onPress={handleChangePhoto} style={styles.photoContainer}>
         {data.photoURL ? (
           <Image source={{ uri: data.photoURL }} style={styles.photo} />
@@ -209,6 +234,31 @@ export default function DoctorProfileEdit() {
           />
         </View>
       ))}
+
+      {/* Campos para contraseña */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Nueva contraseña</Text>
+        <TextInput
+          value={newPassword}
+          onChangeText={setNewPassword}
+          placeholder="Nueva contraseña"
+          style={styles.input}
+          secureTextEntry
+          autoCapitalize="none"
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Confirmar contraseña</Text>
+        <TextInput
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          placeholder="Confirmar contraseña"
+          style={styles.input}
+          secureTextEntry
+          autoCapitalize="none"
+        />
+      </View>
 
       {/* Selección de ubicación */}
       <Text style={styles.label}>Selecciona ubicación en el mapa</Text>
@@ -287,21 +337,4 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: '#5A5CFF',
   },
-  mapCard: {
-  backgroundColor: '#fff',
-  borderRadius: 12,
-  padding: 16,
-  marginBottom: 12,
-  shadowColor: '#000',
-  shadowOpacity: 0.05,
-  shadowRadius: 4,
-  elevation: 2,
-},
-map: {
-  width: '100%',
-  height: 200,
-  marginTop: 8,
-  borderRadius: 8,
-},
-
 });
