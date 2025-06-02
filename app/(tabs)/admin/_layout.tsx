@@ -22,6 +22,9 @@ export default function AdminLayout() {
           height: 70,
           paddingBottom: Platform.OS === 'ios' ? 20 : 10,
         },
+        headerStyle: { backgroundColor: '#5A5CFF' },
+        headerTintColor: '#FFFFFF',
+        headerTitleStyle: { fontWeight: 'bold' },
       }}
     >
       <Tabs.Screen
@@ -37,6 +40,7 @@ export default function AdminLayout() {
         name="reports"
         options={{
           title: 'Reportes',
+          headerShown: true,
           tabBarIcon: ({ color, size, focused }) => (
             <AnimatedTabIcon name="document-text-outline" size={size} color={color} focused={focused} />
           ),
@@ -46,6 +50,7 @@ export default function AdminLayout() {
         name="doctors/create"
         options={{
           title: 'Doctores',
+          headerShown: true,
           tabBarIcon: ({ color, size, focused }) => (
             <AnimatedTabIcon name="person-add-outline" size={size} color={color} focused={focused} />
           ),

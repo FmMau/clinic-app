@@ -1,6 +1,7 @@
 import { db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { getAuth, signOut } from 'firebase/auth';
 import {
   collection,
   getDocs,
@@ -77,11 +78,21 @@ export default function AdminDashboard() {
       <View style={styles.header}>
         <Ionicons name="stats-chart-outline" size={22} color="#5A5CFF" style={{ marginRight: 8 }} />
         <Text style={styles.title}>Panel del Administrador</Text>
+        <TouchableOpacity
+          onPress={async () => {
+            const auth = getAuth();
+            await signOut(auth);
+            router.replace('/');
+          }}
+          style={styles.logoutButton}
+        >
+          <Ionicons name="log-out-outline" size={20} color="#5A5CFF" />
+        </TouchableOpacity>
       </View>
 
       <Card
         title="Resumen de servicios diarios"
-        description={`Hoy se atenderán ${uniquePatients} pacientes con ${servicesCount} servicios médicos.`}
+        description={`Hoy se atenderán ${uniquePatients} pacientes.`}
       />
 
       <Card title="Agenda médica completa">
@@ -175,5 +186,9 @@ const styles = StyleSheet.create({
   empty: {
     color: '#888',
     fontStyle: 'italic',
+  },
+  logoutButton: {
+    marginLeft: 'auto',
+    padding: 6,
   },
 });
