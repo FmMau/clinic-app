@@ -31,20 +31,15 @@ export default function AllAppointments() {
   const uid = auth.currentUser?.uid;
   const pathname = usePathname();
 
-
-  // 👉 Esto se ejecuta al volver a la pantalla
   useFocusEffect(
     useCallback(() => {
-
       if (pathname.includes('[id]')) {
-        // 🧹 Si por error estamos en el detalle dentro de la vista de index, redirige limpio
         router.replace('/(tabs)/patient/appointments');
         return;
       }
 
       if (!uid || !allowed) return;
 
-      // 🔁 Obtener doctores una sola vez por sesión
       const fetchDoctors = async () => {
         const snap = await getDocs(collection(db, 'doctors'));
         const map: Record<string, string> = {};
@@ -57,16 +52,30 @@ export default function AllAppointments() {
 
       fetchDoctors();
 
-      // 🔁 Suscripción en tiempo real
       const q = query(
         collection(db, 'appointments'),
         where('patientId', '==', uid),
         orderBy('date', 'asc')
       );
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        setAppointments(data);
+      const unsubscribe = onSnapshot(q, async (snapshot) => {
+        const now = new Date();
+        const validAppointments: any[] = [];
+
+        await Promise.all(
+          snapshot.docs.map(async (docSnap) => {
+            const docData = docSnap.data();
+            const appointmentDate = docData.date?.toDate?.();
+
+            if (appointmentDate && appointmentDate < now) {
+              await deleteDoc(doc(db, 'appointments', docSnap.id));
+            } else {
+              validAppointments.push({ id: docSnap.id, ...docData });
+            }
+          })
+        );
+
+        setAppointments(validAppointments);
       });
 
       return () => unsubscribe();
