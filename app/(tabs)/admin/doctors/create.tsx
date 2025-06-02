@@ -1,4 +1,5 @@
 import { auth, db } from '@/lib/firebase/firebaseConfig';
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import {
@@ -8,6 +9,7 @@ import {
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -73,7 +75,7 @@ export default function CreateDoctorScreen() {
         email,
         phone,
         specialty,
-        location: coordinates, // ubicación en el campo location
+        location: coordinates,
         role: 'doctor',
         expoPushToken: null,
         createdAt: serverTimestamp(),
@@ -90,8 +92,11 @@ export default function CreateDoctorScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 60 }]}>
-      <Text style={styles.title}>Registrar Médico</Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.header}>
+        <Ionicons name="medkit-outline" size={24} color="#5A5CFF" />
+        <Text style={styles.title}>Registrar Médico</Text>
+      </View>
 
       {[
         { label: 'Nombre completo', value: name, set: setName },
@@ -112,18 +117,18 @@ export default function CreateDoctorScreen() {
         </View>
       ))}
 
-      <Text style={styles.label}>Selecciona ubicación en el mapa</Text>
-      <View style={{ height: 300, marginBottom: 16 }}>
-        {mapRegion && (
+      <Text style={styles.label}>Ubicación en el mapa</Text>
+      <View style={styles.mapContainer}>
+        {mapRegion ? (
           <MapView
             style={{ flex: 1 }}
             region={mapRegion}
             onPress={(e) => setCoordinates(e.nativeEvent.coordinate)}
           >
-            {coordinates && (
-              <Marker coordinate={coordinates} />
-            )}
+            {coordinates && <Marker coordinate={coordinates} />}
           </MapView>
+        ) : (
+          <ActivityIndicator size="large" color="#5A5CFF" style={{ marginTop: 20 }} />
         )}
       </View>
 
@@ -132,6 +137,7 @@ export default function CreateDoctorScreen() {
         onPress={handleSubmit}
         style={styles.button}
       >
+        <Ionicons name="person-add-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
         <Text style={styles.buttonText}>
           {loading ? 'Guardando...' : 'Registrar Médico'}
         </Text>
@@ -143,36 +149,54 @@ export default function CreateDoctorScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 24,
+    paddingBottom: 80,
     backgroundColor: '#fff',
   },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 24,
+    gap: 8,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#5A5CFF',
   },
   inputGroup: {
     marginBottom: 16,
   },
   label: {
-    fontWeight: '600',
+    fontSize: 14,
+    color: '#999',
     marginBottom: 6,
   },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
-    borderRadius: 10,
+    borderRadius: 8,
     padding: 12,
     backgroundColor: '#fff',
   },
+  mapContainer: {
+    height: 280,
+    marginBottom: 24,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderColor: '#ddd',
+    borderWidth: 1,
+  },
   button: {
     backgroundColor: '#5A5CFF',
-    padding: 16,
-    borderRadius: 10,
+    paddingVertical: 14,
+    borderRadius: 8,
     alignItems: 'center',
-    marginTop: 24,
+    justifyContent: 'center',
+    flexDirection: 'row',
   },
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 16,
   },
 });

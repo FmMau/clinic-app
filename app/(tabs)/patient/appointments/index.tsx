@@ -41,13 +41,15 @@ export default function AllAppointments() {
       if (!uid || !allowed) return;
 
       const fetchDoctors = async () => {
-        const snap = await getDocs(collection(db, 'doctors'));
         const map: Record<string, string> = {};
+        const snap = await getDocs(collection(db, 'doctors'));
         snap.docs.forEach((doc) => {
           const data = doc.data();
-          map[doc.id] = data.name || 'Médico';
+          if (data.userId) {
+            map[data.userId] = data.name || 'Médico';
+          }
         });
-        setDoctorMap(map);
+        setDoctorMap(map);        
       };
 
       fetchDoctors();
