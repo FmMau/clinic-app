@@ -49,7 +49,6 @@ export default function CreatePayment() {
         doctorId: auth.currentUser?.uid || '',
         doctorName: doctorProfile?.name || 'Dr. Desconocido',
         specialty: doctorProfile?.specialty || '',
-        location: doctorProfile?.location || '',
         status: 'pendiente',
         createdAt: serverTimestamp(),
         rating: null,
@@ -76,7 +75,6 @@ export default function CreatePayment() {
       <FormField label="ID del Paciente" value={String(patientId || '')} editable={false} />
       <FormField label="Nombre del Doctor" value={doctorProfile?.name || 'Cargando...'} editable={false} />
       <FormField label="Especialidad" value={doctorProfile?.specialty || ''} editable={false} />
-      <FormField label="Ubicación" value={doctorProfile?.location || ''} editable={false} />
       <FormField label="Concepto" value={concept} onChangeText={setConcept} placeholder="Consulta médica" />
       <FormField label="Monto" value={amount} onChangeText={setAmount} placeholder="$0.00" keyboardType="decimal-pad" />
 

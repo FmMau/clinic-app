@@ -2,20 +2,59 @@ import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import {
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+
+function LocationDisplay({ location }: { location?: { latitude: number; longitude: number } }) {
+  const hasCoords = location?.latitude && location?.longitude;
+
+  return (
+    <>
+      <Text style={{ color: '#444', marginBottom: 12 }}>
+        <Text style={{ fontWeight: 'bold' }}>Ubicación:</Text>{' '}
+      </Text>
+
+      {hasCoords ? (
+        <MapView
+          style={{
+            width: '100%',
+            height: 200,
+            borderRadius: 8,
+          }}
+          initialRegion={{
+            latitude: location.latitude,
+            longitude: location.longitude,
+            latitudeDelta: 0.005,
+            longitudeDelta: 0.005,
+          }}
+        >
+          <Marker coordinate={{ latitude: location.latitude, longitude: location.longitude }} />
+        </MapView>
+      ) : (
+        <View
+          style={{
+            height: 120,
+            borderRadius: 8,
+            backgroundColor: '#EEE',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ color: '#aaa', textAlign: 'center' }}>
+            Ubicación no disponible
+          </Text>
+        </View>
+      )}
+    </>
+  );
+}
 
 export default function AppointmentDetail() {
   const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const { id } = useLocalSearchParams();
-  const router = useRouter();
   const [appointment, setAppointment] = useState<any>(null);
 
   useEffect(() => {
@@ -46,8 +85,6 @@ export default function AppointmentDetail() {
     hour: '2-digit',
     minute: '2-digit',
   });
-
-  const coords = appointment.coordinates;
 
   return (
     <ScrollView style={{ flex: 1, padding: 24, backgroundColor: '#fff' }}>
@@ -91,45 +128,8 @@ export default function AppointmentDetail() {
           <Text style={{ fontWeight: 'bold' }}>Fecha y Hora:</Text> {dateStr} - {timeStr}
         </Text>
 
-        <Text style={{ color: '#444', marginBottom: 12 }}>
-          <Text style={{ fontWeight: 'bold' }}>Ubicación:</Text>{' '}
-          {appointment.location && appointment.location !== 'Ubicación no especificada'
-            ? appointment.location
-            : 'Clínica Central'}
-        </Text>
-
-        {coords?.latitude && coords?.longitude ? (
-          <MapView
-            style={{
-              width: '100%',
-              height: 200,
-              borderRadius: 8,
-            }}
-            initialRegion={{
-              latitude: coords.latitude,
-              longitude: coords.longitude,
-              latitudeDelta: 0.005,
-              longitudeDelta: 0.005,
-            }}
-          >
-            <Marker coordinate={{ latitude: coords.latitude, longitude: coords.longitude }} />
-          </MapView>
-        ) : (
-          <View
-            style={{
-              height: 120,
-              borderRadius: 8,
-              backgroundColor: '#EEE',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ color: '#aaa', textAlign: 'center' }}>
-              Ubicación no disponible
-            </Text>
-          </View>
-        )}
+        <LocationDisplay location={appointment.location} />
       </View>
     </ScrollView>
   );
-} 
+}

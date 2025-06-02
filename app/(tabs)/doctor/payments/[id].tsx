@@ -20,19 +20,38 @@ export default function DoctorPaymentDetail() {
 
     const fetchPayment = async () => {
       try {
-        const docRef = doc(db, 'payments', id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setPayment(docSnap.data());
-        } else {
+        const paymentDocRef = doc(db, 'payments', id);
+        const paymentDocSnap = await getDoc(paymentDocRef);
+    
+        if (!paymentDocSnap.exists()) {
           setPayment(null);
+          setLoading(false);
+          return;
         }
+    
+        const paymentData = paymentDocSnap.data();
+    
+        // Traer paciente
+        let patientName = 'Paciente desconocido';
+        if (paymentData.patientId) {
+          const patientDocRef = doc(db, 'patients', paymentData.patientId);
+          const patientDocSnap = await getDoc(patientDocRef);
+          if (patientDocSnap.exists()) {
+            const patientData = patientDocSnap.data();
+            const name = patientData?.name || '';
+            const lastname = patientData?.lastname || '';
+            patientName = `${name} ${lastname}`.trim() || patientName;
+          }
+        }
+    
+        setPayment({ ...paymentData, patientName });
       } catch (err) {
         console.error('Error al obtener pago:', err);
+        setPayment(null);
       } finally {
         setLoading(false);
       }
-    };
+    };    
 
     fetchPayment();
   }, [id]);
@@ -78,7 +97,6 @@ export default function DoctorPaymentDetail() {
         <Label title="Estado" value={status || 'pendiente'} />
         <Label title="Método" value={method || 'No registrado'} />
         <Label title="Especialidad" value={specialty || '---'} />
-        <Label title="Ubicación" value={location || '---'} />
       </Card>
 
       {comments ? (

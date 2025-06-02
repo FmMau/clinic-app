@@ -69,18 +69,7 @@ export default function ConsultationDetail() {
   if (!patient) return <Text style={styles.status}>Paciente no encontrado</Text>;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ gap: 24 }}>
-      <View style={styles.sectionHeader}>
-        <Ionicons name="person-circle-outline" size={20} color="#5A5CFF" style={{ marginRight: 8 }} />
-        <Text style={styles.sectionTitle}>Datos del paciente</Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.label}>Nombre: <Text style={styles.value}>{patient.name}</Text></Text>
-        <Text style={styles.label}>Edad: <Text style={styles.value}>{patient.age}</Text></Text>
-        <Text style={styles.label}>Seguro: <Text style={styles.value}>{patient.insurance || 'N/A'}</Text></Text>
-      </View>
-
+    <ScrollView style={styles.container} contentContainerStyle={{ gap: 0 }}>
       <View style={styles.sectionHeader}>
         <Ionicons name="document-text-outline" size={20} color="#5A5CFF" style={{ marginRight: 8 }} />
         <Text style={styles.sectionTitle}>Registrar diagnóstico</Text>

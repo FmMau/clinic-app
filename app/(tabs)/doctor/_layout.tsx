@@ -66,6 +66,15 @@ export default function DoctorTabsLayout() {
         ),
       }}
       />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Perfil',
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon name="person-outline" size={size} color={color} focused={focused} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

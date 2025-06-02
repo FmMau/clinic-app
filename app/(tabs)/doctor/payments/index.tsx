@@ -2,7 +2,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+} from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
   ScrollView,
@@ -29,11 +37,30 @@ export default function DoctorPaymentsIndex() {
       orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const data = await Promise.all(
+        snapshot.docs.map(async (docSnap) => {
+          const paymentData = docSnap.data();
+          const patientId = paymentData.patientId;
+
+          let patientName = 'Paciente desconocido';
+
+          if (patientId) {
+            const patientDoc = await getDoc(doc(db, 'patients', patientId));
+            if (patientDoc.exists()) {
+              const patientData = patientDoc.data();
+              patientName = patientData?.name || patientName;
+            }
+          }
+
+          return {
+            id: docSnap.id,
+            ...paymentData,
+            patientName,
+          };
+        })
+      );
+
       setPayments(data);
       setFiltered(data);
     });
@@ -45,9 +72,7 @@ export default function DoctorPaymentsIndex() {
     const s = search.trim().toLowerCase();
     setFiltered(
       s
-        ? payments.filter((p) =>
-            p.patientName?.toLowerCase().includes(s)
-          )
+        ? payments.filter((p) => p.patientName?.toLowerCase().includes(s))
         : payments
     );
   }, [search, payments]);
@@ -63,10 +88,17 @@ export default function DoctorPaymentsIndex() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#fff', padding: 20, paddingTop: 40 }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: '#fff', padding: 20, paddingTop: 40 }}
+    >
       <Section icon="card-outline" title="Pagos realizados">
         <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={20} color="#999" style={{ marginRight: 8 }} />
+          <Ionicons
+            name="search-outline"
+            size={20}
+            color="#999"
+            style={{ marginRight: 8 }}
+          />
           <TextInput
             placeholder="Buscar paciente..."
             value={search}
@@ -88,6 +120,9 @@ export default function DoctorPaymentsIndex() {
       </Section>
 
       <Section icon="chatbubble-ellipses-outline" title="Valoraciones de pacientes">
+        {payments.filter((p) => p.rating && p.comments).length === 0 && (
+          <Text style={{ color: '#999' }}>Sin valoraciones aún.</Text>
+        )}
         {payments
           .filter((p) => p.rating && p.comments)
           .map((p) => (
@@ -95,14 +130,13 @@ export default function DoctorPaymentsIndex() {
               <Text style={{ fontStyle: 'italic', marginBottom: 8 }}>
                 "{p.comments}"
               </Text>
-              <Text style={{ textAlign: 'right', color: '#5A5CFF', fontWeight: '600' }}>
+              <Text
+                style={{ textAlign: 'right', color: '#5A5CFF', fontWeight: '600' }}
+              >
                 – {p.patientName || 'Paciente'}
               </Text>
             </View>
           ))}
-        {payments.filter((p) => p.rating && p.comments).length === 0 && (
-          <Text style={{ color: '#999' }}>Sin valoraciones aún.</Text>
-        )}
       </Section>
     </ScrollView>
   );
@@ -119,7 +153,9 @@ function Section({
 }) {
   return (
     <View style={{ marginBottom: 32 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+      <View
+        style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}
+      >
         <Ionicons name={icon as any} size={20} color="#5A5CFF" style={{ marginRight: 8 }} />
         <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{title}</Text>
       </View>
@@ -143,7 +179,9 @@ function Card({
 }) {
   return (
     <TouchableOpacity onPress={onPress} style={styles.card}>
-      <Text style={{ color: '#5A5CFF', fontWeight: 'bold', marginBottom: 4 }}>{title}</Text>
+      <Text style={{ color: '#5A5CFF', fontWeight: 'bold', marginBottom: 4 }}>
+        {title}
+      </Text>
       <Text style={{ color: '#333', marginBottom: 6 }}>{subtitle}</Text>
       {badge && <Text style={{ fontWeight: '600', color: '#10B981' }}>{badge}</Text>}
     </TouchableOpacity>
