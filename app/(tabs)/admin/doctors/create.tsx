@@ -6,7 +6,7 @@ import {
   createUserWithEmailAndPassword,
   fetchSignInMethodsForEmail,
 } from 'firebase/auth';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -65,12 +65,11 @@ export default function CreateDoctorScreen() {
         return;
       }
 
-      const password = 'default123';
+      const password = 'cambiar1234';
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const userId = userCredential.user.uid;
-
-      await addDoc(collection(db, 'doctors'), {
-        userId,
+      
+      await setDoc(doc(db, 'doctors', userId), {
         name,
         email,
         phone,
