@@ -104,16 +104,16 @@ export default function AdminDashboard() {
               {new Date(appt.date.toDate()).toLocaleTimeString([], {
                 hour: '2-digit',
                 minute: '2-digit',
-              })} – {appt.doctor} – {appt.service}
+              })} – {appt.doctor}
             </Text>
           ))
         )}
       </Card>
 
-      <Card title="Control de usuarios">
+{/*       <Card title="Control de usuarios">
         <Text style={styles.info}>Usuarios activos: {activeUsers}</Text>
         <Text style={styles.info}>Nuevos registros hoy: {newUsersToday}</Text>
-      </Card>
+      </Card> */}
 
       <Card
         title="Reportes y estadísticas"

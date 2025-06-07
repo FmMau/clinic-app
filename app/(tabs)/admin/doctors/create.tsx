@@ -8,28 +8,42 @@ import {
 } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
+import type { KeyboardTypeOptions } from 'react-native';
 import {
   ActivityIndicator,
   Alert,
-  ScrollView,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import DropDownPicker from 'react-native-dropdown-picker';
 import MapView, { Marker } from 'react-native-maps';
 
 export default function CreateDoctorScreen() {
   const router = useRouter();
 
   const [name, setName] = useState('');
-  const [specialty, setSpecialty] = useState('');
+  const [specialty, setSpecialty] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
   const [mapRegion, setMapRegion] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+
+  // Dropdown picker states
+  const [openSpecialty, setOpenSpecialty] = useState(false);
+  const [specialties, setSpecialties] = useState([
+    { label: 'Cardiología', value: 'cardiologia' },
+    { label: 'Pediatría', value: 'pediatria' },
+    { label: 'Dermatología', value: 'dermatologia' },
+    { label: 'Ginecología', value: 'ginecologia' },
+    { label: 'Neurología', value: 'neurologia' },
+  ]);
 
   useEffect(() => {
     (async () => {
@@ -68,7 +82,7 @@ export default function CreateDoctorScreen() {
       const password = 'cambiar1234';
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const userId = userCredential.user.uid;
-      
+
       await setDoc(doc(db, 'doctors', userId), {
         name,
         email,
@@ -90,19 +104,26 @@ export default function CreateDoctorScreen() {
     }
   };
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
+  const inputFields: {
+    label: string;
+    value: string;
+    set: React.Dispatch<React.SetStateAction<string>>;
+    keyboardType: KeyboardTypeOptions;
+  }[] = [
+    { label: 'Nombre completo', value: name, set: setName, keyboardType: 'default' },
+    { label: 'Correo electrónico', value: email, set: setEmail, keyboardType: 'email-address' },
+    { label: 'Teléfono', value: phone, set: setPhone, keyboardType: 'phone-pad' },
+  ];
+
+  // Contenido para el header del FlatList (inputs + dropdown + mapa + botón)
+  const renderHeader = () => (
+    <View style={styles.container}>
       <View style={styles.header}>
         <Ionicons name="medkit-outline" size={24} color="#5A5CFF" />
         <Text style={styles.title}>Registrar Médico</Text>
       </View>
 
-      {[
-        { label: 'Nombre completo', value: name, set: setName },
-        { label: 'Especialidad', value: specialty, set: setSpecialty },
-        { label: 'Correo electrónico', value: email, set: setEmail },
-        { label: 'Teléfono', value: phone, set: setPhone },
-      ].map(({ label, value, set }, i) => (
+      {inputFields.map(({ label, value, set, keyboardType }, i) => (
         <View key={i} style={styles.inputGroup}>
           <Text style={styles.label}>{label}</Text>
           <TextInput
@@ -111,10 +132,28 @@ export default function CreateDoctorScreen() {
             placeholder={label}
             style={styles.input}
             autoCapitalize="none"
-            keyboardType={label.includes('Correo') ? 'email-address' : 'default'}
+            keyboardType={keyboardType}
           />
         </View>
       ))}
+
+      <View style={[styles.inputGroup, styles.dropdownWrapper]}>
+        <Text style={styles.label}>Especialidad</Text>
+        <DropDownPicker
+          open={openSpecialty}
+          value={specialty}
+          items={specialties}
+          setOpen={setOpenSpecialty}
+          setValue={setSpecialty}
+          setItems={setSpecialties}
+          placeholder="Selecciona una especialidad"
+          dropDownDirection="BOTTOM"
+          style={styles.dropdown}
+          dropDownContainerStyle={styles.dropdownContainer}
+          zIndex={5000}
+          zIndexInverse={6000}
+        />
+      </View>
 
       <Text style={styles.label}>Ubicación en el mapa</Text>
       <View style={styles.mapContainer}>
@@ -134,22 +173,46 @@ export default function CreateDoctorScreen() {
       <TouchableOpacity
         disabled={loading}
         onPress={handleSubmit}
-        style={styles.button}
+        style={[styles.button, loading && { opacity: 0.6 }]}
       >
         <Ionicons name="person-add-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
         <Text style={styles.buttonText}>
           {loading ? 'Guardando...' : 'Registrar Médico'}
         </Text>
       </TouchableOpacity>
-    </ScrollView>
+    </View>
+  );
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={100}
+    >
+      <FlatList
+        data={[]} // no hay lista real, solo para que FlatList maneje scroll
+        renderItem={() => null} // Dummy renderItem to satisfy the requirement
+        ListHeaderComponent={renderHeader}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollContent}
+        // para que flatlist ocupe todo el alto
+        style={{ flex: 1 }}
+      />
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  flex: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: 24,
-    paddingBottom: 80,
     backgroundColor: '#fff',
+  },
+  container: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -165,6 +228,10 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 16,
   },
+  dropdownWrapper: {
+    zIndex: 5000,
+    elevation: 10, // para Android
+  },
   label: {
     fontSize: 14,
     color: '#999',
@@ -177,21 +244,29 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: '#fff',
   },
+  dropdown: {
+    borderColor: '#ccc',
+    backgroundColor: '#fff',
+  },
+  dropdownContainer: {
+    borderColor: '#ccc',
+    backgroundColor: '#fff',
+  },
   mapContainer: {
-    height: 280,
-    marginBottom: 24,
+    width: '100%',
+    height: 200,
     borderRadius: 8,
     overflow: 'hidden',
-    borderColor: '#ddd',
-    borderWidth: 1,
+    marginBottom: 24,
   },
   button: {
+    flexDirection: 'row',
     backgroundColor: '#5A5CFF',
     paddingVertical: 14,
+    paddingHorizontal: 20,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
   },
   buttonText: {
     color: '#fff',
