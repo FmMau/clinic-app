@@ -12,9 +12,9 @@ import type { KeyboardTypeOptions } from 'react-native';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -84,6 +84,7 @@ export default function CreateDoctorScreen() {
       const userId = userCredential.user.uid;
 
       await setDoc(doc(db, 'doctors', userId), {
+        userId,
         name,
         email,
         phone,
@@ -115,89 +116,84 @@ export default function CreateDoctorScreen() {
     { label: 'Teléfono', value: phone, set: setPhone, keyboardType: 'phone-pad' },
   ];
 
-  // Contenido para el header del FlatList (inputs + dropdown + mapa + botón)
-  const renderHeader = () => (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Ionicons name="medkit-outline" size={24} color="#5A5CFF" />
-        <Text style={styles.title}>Registrar Médico</Text>
-      </View>
-
-      {inputFields.map(({ label, value, set, keyboardType }, i) => (
-        <View key={i} style={styles.inputGroup}>
-          <Text style={styles.label}>{label}</Text>
-          <TextInput
-            value={value}
-            onChangeText={set}
-            placeholder={label}
-            style={styles.input}
-            autoCapitalize="none"
-            keyboardType={keyboardType}
-          />
-        </View>
-      ))}
-
-      <View style={[styles.inputGroup, styles.dropdownWrapper]}>
-        <Text style={styles.label}>Especialidad</Text>
-        <DropDownPicker
-          open={openSpecialty}
-          value={specialty}
-          items={specialties}
-          setOpen={setOpenSpecialty}
-          setValue={setSpecialty}
-          setItems={setSpecialties}
-          placeholder="Selecciona una especialidad"
-          dropDownDirection="BOTTOM"
-          style={styles.dropdown}
-          dropDownContainerStyle={styles.dropdownContainer}
-          zIndex={5000}
-          zIndexInverse={6000}
-        />
-      </View>
-
-      <Text style={styles.label}>Ubicación en el mapa</Text>
-      <View style={styles.mapContainer}>
-        {mapRegion ? (
-          <MapView
-            style={{ flex: 1 }}
-            region={mapRegion}
-            onPress={(e) => setCoordinates(e.nativeEvent.coordinate)}
-          >
-            {coordinates && <Marker coordinate={coordinates} />}
-          </MapView>
-        ) : (
-          <ActivityIndicator size="large" color="#5A5CFF" style={{ marginTop: 20 }} />
-        )}
-      </View>
-
-      <TouchableOpacity
-        disabled={loading}
-        onPress={handleSubmit}
-        style={[styles.button, loading && { opacity: 0.6 }]}
-      >
-        <Ionicons name="person-add-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
-        <Text style={styles.buttonText}>
-          {loading ? 'Guardando...' : 'Registrar Médico'}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={100}
     >
-      <FlatList
-        data={[]} // no hay lista real, solo para que FlatList maneje scroll
-        renderItem={() => null} // Dummy renderItem to satisfy the requirement
-        ListHeaderComponent={renderHeader}
-        keyboardShouldPersistTaps="handled"
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
-        // para que flatlist ocupe todo el alto
-        style={{ flex: 1 }}
-      />
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <Ionicons name="medkit-outline" size={24} color="#5A5CFF" />
+            <Text style={styles.title}>Registrar Médico</Text>
+          </View>
+
+          {inputFields.map(({ label, value, set, keyboardType }, i) => (
+            <View key={i} style={styles.inputGroup}>
+              <Text style={styles.label}>{label}</Text>
+              <TextInput
+                value={value}
+                onChangeText={set}
+                placeholder={label}
+                style={styles.input}
+                autoCapitalize="none"
+                keyboardType={keyboardType}
+              />
+            </View>
+          ))}
+
+          <View style={[styles.inputGroup, styles.dropdownWrapper]}>
+            <Text style={styles.label}>Especialidad</Text>
+            <DropDownPicker
+              open={openSpecialty}
+              value={specialty}
+              items={specialties}
+              setOpen={setOpenSpecialty}
+              setValue={setSpecialty}
+              setItems={setSpecialties}
+              placeholder="Selecciona una especialidad"
+              dropDownDirection="BOTTOM"
+              style={styles.dropdown}
+              dropDownContainerStyle={styles.dropdownContainer}
+              zIndex={5000}
+              zIndexInverse={6000}
+            />
+          </View>
+
+          <Text style={styles.label}>Ubicación en el mapa</Text>
+          <View style={styles.mapContainer}>
+            {mapRegion ? (
+              <MapView
+                style={{ flex: 1 }}
+                region={mapRegion}
+                onPress={(e) => setCoordinates(e.nativeEvent.coordinate)}
+              >
+                {coordinates && <Marker coordinate={coordinates} />}
+              </MapView>
+            ) : (
+              <ActivityIndicator size="large" color="#5A5CFF" style={{ marginTop: 20 }} />
+            )}
+          </View>
+
+          <TouchableOpacity
+            disabled={loading}
+            onPress={handleSubmit}
+            style={[styles.button, loading && { opacity: 0.6 }]}
+          >
+            <Ionicons name="person-add-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.buttonText}>
+              {loading ? 'Guardando...' : 'Registrar Médico'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* espacio adicional cuando el dropdown está abierto */}
+          <View style={{ height: openSpecialty ? 200 : 0 }} />
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -207,9 +203,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    flexGrow: 1,
     padding: 24,
     backgroundColor: '#fff',
+    paddingBottom: 40, // por el teclado y botón
   },
   container: {
     flex: 1,
@@ -230,7 +226,7 @@ const styles = StyleSheet.create({
   },
   dropdownWrapper: {
     zIndex: 5000,
-    elevation: 10, // para Android
+    elevation: 10,
   },
   label: {
     fontSize: 14,

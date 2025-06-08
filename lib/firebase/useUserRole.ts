@@ -35,8 +35,20 @@ export function useUserRole() {
           const data = patientSnap.data();
           console.log('[useUserRole] Rol detectado en patients:', data.role || 'paciente');
           setRole(data.role || 'paciente');
+          setLoading(false);
+          return;
+        }
+
+        // 3. Buscar en `doctors`
+        const doctorRef = doc(db, 'doctors', uid);
+        const doctorSnap = await getDoc(doctorRef);
+
+        if (doctorSnap.exists()) {
+          const data = doctorSnap.data();
+          console.log('[useUserRole] Rol detectado en doctors:', data.role || 'doctor');
+          setRole(data.role || 'doctor');
         } else {
-          console.log('[useUserRole] No se encontró rol.');
+          console.log('[useUserRole] No se encontró rol en ninguna colección.');
         }
       } catch (err) {
         console.error('[useUserRole] Error al obtener rol:', err);
