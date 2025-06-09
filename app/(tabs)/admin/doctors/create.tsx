@@ -24,6 +24,33 @@ import {
 import DropDownPicker from 'react-native-dropdown-picker';
 import MapView, { Marker } from 'react-native-maps';
 
+/**
+ * CreateDoctorScreen Component
+ *
+ * Este componente permite registrar un nuevo médico en la aplicación. 
+ * Utiliza prácticas y estándares modernos de desarrollo en React y TypeScript, 
+ * incluyendo el uso de hooks, manejo de estado, y componentes reutilizables.
+ *
+ * Principales características:
+ * - Uso de `useState` para manejar el estado local de los campos del formulario.
+ * - Validación de campos obligatorios antes de enviar los datos.
+ * - Integración con Firebase para registrar al médico y almacenar sus datos en Firestore.
+ * - Uso de `react-native-maps` para seleccionar la ubicación del médico en un mapa.
+ * - Implementación de un dropdown para seleccionar la especialidad del médico utilizando `DropDownPicker`.
+ * - Manejo de permisos de ubicación con `expo-location`.
+ * - Diseño responsivo con `KeyboardAvoidingView` para mejorar la experiencia en dispositivos móviles.
+ *
+ * Prácticas y estándares utilizados:
+ * - **Separación de responsabilidades**: Cada parte del componente tiene una función clara, como manejar el estado, renderizar la UI, o interactuar con Firebase.
+ * - **Uso de hooks**: Se utilizan hooks como `useState` y `useEffect` para manejar el estado y efectos secundarios, siguiendo las mejores prácticas de React.
+ * - **Validación de datos**: Se valida que todos los campos obligatorios estén completos antes de enviar los datos, mejorando la robustez del componente.
+ * - **Accesibilidad**: Uso de `keyboardShouldPersistTaps` y `KeyboardAvoidingView` para mejorar la experiencia del usuario en dispositivos móviles.
+ * - **Código reutilizable**: Los campos de entrada se generan dinámicamente a partir de un arreglo de configuraciones, reduciendo la repetición de código.
+ * - **Manejo de errores**: Se implementa un manejo de errores robusto con `try-catch` y mensajes de alerta para informar al usuario.
+ * - **Estilo modular**: Los estilos están organizados en un objeto `styles`, lo que facilita su mantenimiento y modificación.
+ *
+ * @returns {JSX.Element} Pantalla de registro de médicos.
+ */
 export default function CreateDoctorScreen() {
   const router = useRouter();
 
