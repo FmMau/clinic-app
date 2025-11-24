@@ -9,13 +9,15 @@ import {
   deleteDoc,
   doc,
   getDocs,
-  onSnapshot,
+  limit,
   orderBy,
   query,
+  startAfter,
   where,
 } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   Text,
@@ -23,13 +25,87 @@ import {
   View,
 } from 'react-native';
 
+const PAGE_SIZE = 10;
+
 export default function AllAppointments() {
   const { loading, allowed } = useRoleGuard(['paciente']);
   const router = useRouter();
   const [appointments, setAppointments] = useState<any[]>([]);
   const [doctorMap, setDoctorMap] = useState<Record<string, string>>({});
+  const [loadingList, setLoadingList] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [lastVisible, setLastVisible] = useState<any>(null);
+  const [hasMore, setHasMore] = useState(true);
+
   const uid = auth.currentUser?.uid;
   const pathname = usePathname();
+
+  // Función para obtener citas con paginación
+  const fetchAppointments = async (reset = false) => {
+    if (!uid || !allowed) return;
+
+    if (reset) {
+      setLoadingList(true);
+      setHasMore(true);
+      setLastVisible(null);
+    } else {
+      if (!hasMore || loadingMore) return;
+      setLoadingMore(true);
+    }
+
+    try {
+      const baseRef = collection(db, 'appointments');
+
+      let q: any = query(
+        baseRef,
+        where('patientId', '==', uid),
+        orderBy('date', 'asc'),
+        limit(PAGE_SIZE)
+      );
+
+      if (!reset && lastVisible) {
+        q = query(
+          baseRef,
+          where('patientId', '==', uid),
+          orderBy('date', 'asc'),
+          startAfter(lastVisible),
+          limit(PAGE_SIZE)
+        );
+      }
+
+      const snapshot = await getDocs(q);
+      const now = new Date();
+      const fetched: any[] = [];
+
+      snapshot.docs.forEach((docSnap) => {
+        const data = docSnap.data();
+        const appointmentDate = data.date?.toDate?.();
+
+        // Ya no borramos las citas viejas, solo no las mostramos
+        if (!appointmentDate || appointmentDate >= now) {
+          fetched.push({ id: docSnap.id, ...data });
+        }
+      });
+
+      if (reset) {
+        setAppointments(fetched);
+      } else {
+        setAppointments((prev) => [...prev, ...fetched]);
+      }
+
+      if (snapshot.docs.length > 0) {
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+        setHasMore(snapshot.docs.length === PAGE_SIZE);
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error('Error al obtener citas:', error);
+    } finally {
+      setLoadingList(false);
+      setLoadingMore(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -41,47 +117,30 @@ export default function AllAppointments() {
       if (!uid || !allowed) return;
 
       const fetchDoctors = async () => {
-        const map: Record<string, string> = {};
-        const snap = await getDocs(collection(db, 'doctors'));
-        snap.docs.forEach((doc) => {
-          const data = doc.data();
-          if (data.userId) {
-            map[data.userId] = data.name || 'Médico';
-          }
-        });
-        setDoctorMap(map);        
+        try {
+          const map: Record<string, string> = {};
+          const snap = await getDocs(collection(db, 'doctors'));
+          snap.docs.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (data.userId) {
+              map[data.userId] = data.name || 'Médico';
+            }
+          });
+          setDoctorMap(map);
+        } catch (err) {
+          console.error('Error al obtener médicos:', err);
+        }
       };
 
-      fetchDoctors();
+      const run = async () => {
+        await fetchDoctors();
+        await fetchAppointments(true); // primera página
+      };
 
-      const q = query(
-        collection(db, 'appointments'),
-        where('patientId', '==', uid),
-        orderBy('date', 'asc')
-      );
+      run();
 
-      const unsubscribe = onSnapshot(q, async (snapshot) => {
-        const now = new Date();
-        const validAppointments: any[] = [];
-
-        await Promise.all(
-          snapshot.docs.map(async (docSnap) => {
-            const docData = docSnap.data();
-            const appointmentDate = docData.date?.toDate?.();
-
-            if (appointmentDate && appointmentDate < now) {
-              await deleteDoc(doc(db, 'appointments', docSnap.id));
-            } else {
-              validAppointments.push({ id: docSnap.id, ...docData });
-            }
-          })
-        );
-
-        setAppointments(validAppointments);
-      });
-
-      return () => unsubscribe();
-    }, [uid, allowed])
+      // no cleanup especial
+    }, [uid, allowed, pathname, router])
   );
 
   const cancelAppointment = (id: string) => {
@@ -93,6 +152,8 @@ export default function AllAppointments() {
           try {
             await deleteDoc(doc(db, 'appointments', id));
             Alert.alert('Cita eliminada');
+            // recargar lista desde el inicio
+            fetchAppointments(true);
           } catch (error: any) {
             Alert.alert('Error', 'No se pudo eliminar la cita.');
             console.error(error);
@@ -102,7 +163,9 @@ export default function AllAppointments() {
     ]);
   };
 
-  if (loading) return <LoadingScreen message="Cargando tus citas..." />;
+  if (loading || loadingList) {
+    return <LoadingScreen message="Cargando tus citas..." />;
+  }
   if (!allowed) return null;
 
   return (
@@ -110,7 +173,6 @@ export default function AllAppointments() {
       style={{ flex: 1, backgroundColor: '#fff', paddingHorizontal: 24 }}
       contentContainerStyle={{ paddingTop: 24, paddingBottom: 80 }}
     >
-      <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 20 }}>Tus Citas</Text>
 
       {appointments.length === 0 && (
         <Text style={{ color: '#999' }}>No tienes citas registradas.</Text>
@@ -136,74 +198,128 @@ export default function AllAppointments() {
         const doctorName = doctorMap[a.doctorId] || 'Médico';
 
         return (
-          <TouchableOpacity
+          <AppointmentCard
             key={a.id}
-            onPress={() => router.push(`/(tabs)/patient/appointments/${a.id}`)}
-            style={{
-              backgroundColor: '#fff',
-              padding: 16,
-              borderRadius: 12,
-              marginBottom: 16,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.05,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-              <Ionicons
-                name="calendar-outline"
-                size={18}
-                color="#5A5CFF"
-                style={{ marginRight: 8 }}
-              />
-              <Text style={{ fontWeight: 'bold', color: '#333' }}>
-                {doctorName}
-              </Text>
-            </View>
-
-            <Text style={{ color: '#333', marginBottom: 4 }}>Fecha: {dateStr}</Text>
-            <Text style={{ color: '#333', marginBottom: 8 }}>Hora: {timeStr}</Text>
-
-            <StatusBadge status={a.status} />
-
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
-              <TouchableOpacity
-                onPress={() => router.push(`/(tabs)/patient/appointments/${a.id}/edit`)}
-                style={{
-                  backgroundColor: '#5A5CFF',
-                  paddingVertical: 8,
-                  paddingHorizontal: 16,
-                  borderRadius: 6,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-              >
-                <Ionicons name="create-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Reagendar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => cancelAppointment(a.id)}
-                style={{
-                  borderColor: '#5A5CFF',
-                  borderWidth: 1.5,
-                  paddingVertical: 8,
-                  paddingHorizontal: 16,
-                  borderRadius: 6,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-              >
-                <Ionicons name="trash-outline" size={16} color="#5A5CFF" style={{ marginRight: 6 }} />
-                <Text style={{ color: '#5A5CFF', fontWeight: 'bold' }}>Cancelar</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
+            doctorName={doctorName}
+            dateStr={dateStr}
+            timeStr={timeStr}
+            status={a.status}
+            onView={() => router.push(`/(tabs)/patient/appointments/${a.id}`)}
+            onEdit={() => router.push(`/(tabs)/patient/appointments/${a.id}/edit`)}
+            onCancel={() => cancelAppointment(a.id)}
+          />
         );
       })}
+
+      {hasMore && appointments.length > 0 && (
+        <View style={{ marginTop: 12, alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => fetchAppointments(false)}
+            style={{
+              paddingVertical: 10,
+              paddingHorizontal: 20,
+              borderRadius: 8,
+              backgroundColor: '#5A5CFF',
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}
+            disabled={loadingMore}
+          >
+            {loadingMore && (
+              <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+            )}
+            <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+              {loadingMore ? 'Cargando...' : 'Cargar más'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </ScrollView>
+  );
+}
+
+type AppointmentCardProps = {
+  doctorName: string;
+  dateStr: string;
+  timeStr: string;
+  status: string;
+  onView: () => void;
+  onEdit: () => void;
+  onCancel: () => void;
+};
+
+function AppointmentCard({
+  doctorName,
+  dateStr,
+  timeStr,
+  status,
+  onView,
+  onEdit,
+  onCancel,
+}: AppointmentCardProps) {
+  return (
+    <TouchableOpacity
+      onPress={onView}
+      style={{
+        backgroundColor: '#fff',
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 3,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+        <Ionicons
+          name="calendar-outline"
+          size={18}
+          color="#5A5CFF"
+          style={{ marginRight: 8 }}
+        />
+        <Text style={{ fontWeight: 'bold', color: '#333' }}>{doctorName}</Text>
+      </View>
+
+      <Text style={{ color: '#333', marginBottom: 4 }}>Fecha: {dateStr}</Text>
+      <Text style={{ color: '#333', marginBottom: 8 }}>Hora: {timeStr}</Text>
+
+      <StatusBadge status={status} />
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
+        <TouchableOpacity
+          onPress={onEdit}
+          style={{
+            backgroundColor: '#5A5CFF',
+            paddingVertical: 8,
+            paddingHorizontal: 16,
+            borderRadius: 6,
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}
+        >
+          <Ionicons name="create-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
+          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Reagendar</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={onCancel}
+          style={{
+            borderColor: '#5A5CFF',
+            borderWidth: 1.5,
+            paddingVertical: 8,
+            paddingHorizontal: 16,
+            borderRadius: 6,
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}
+        >
+          <Ionicons name="trash-outline" size={16} color="#5A5CFF" style={{ marginRight: 6 }} />
+          <Text style={{ color: '#5A5CFF', fontWeight: 'bold' }}>Cancelar</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -230,9 +346,5 @@ function StatusBadge({ status }: { status: string }) {
       break;
   }
 
-  return (
-    <Text style={{ color, fontWeight: '600' }}>
-      {label}
-    </Text>
-  );
+  return <Text style={{ color, fontWeight: '600' }}>{label}</Text>;
 }
