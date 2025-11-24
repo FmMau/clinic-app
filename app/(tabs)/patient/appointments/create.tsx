@@ -28,6 +28,10 @@ const START_HOUR = 9;
 const END_HOUR = 17;
 const SLOT_DURATION_MINUTES = 30;
 
+function dateToYMD(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
 export default function CreateAppointment() {
   const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const router = useRouter();
@@ -40,33 +44,163 @@ export default function CreateAppointment() {
 
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
+
   const [doctorId, setDoctorId] = useState('');
   const [doctorItems, setDoctorItems] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
 
+  // 👉 nuevo: cache de citas del doctor por día (para no hacer una query por día)
+  const [takenByDate, setTakenByDate] = useState<Record<string, Date[]>>({});
+
+  // Cargar lista de doctores una sola vez
   useEffect(() => {
     const fetchDoctors = async () => {
-      const snap = await getDocs(collection(db, 'doctors'));
-      const list = snap.docs.map(doc => ({
-        label: `${doc.data().name} - ${doc.data().specialty}`,
-        value: doc.data().userId,
-      }));
-      setDoctorItems(list);
+      try {
+        const snap = await getDocs(collection(db, 'doctors'));
+        const list = snap.docs.map((docSnap) => ({
+          label: `${docSnap.data().name} - ${docSnap.data().specialty}`,
+          value: docSnap.data().userId,
+        }));
+        setDoctorItems(list);
+      } catch (err) {
+        console.error('Error al obtener doctores:', err);
+      }
     };
     fetchDoctors();
   }, []);
 
+  // Genera slots de media en media hora dentro del día
+  const generateTimeSlots = (date: Date): Date[] => {
+    const slots: Date[] = [];
+    for (let hour = START_HOUR; hour < END_HOUR; hour++) {
+      for (let min = 0; min < 60; min += SLOT_DURATION_MINUTES) {
+        const slot = new Date(date);
+        slot.setHours(hour, min, 0, 0);
+        slots.push(new Date(slot));
+      }
+    }
+    return slots;
+  };
+
+  // 👉 NUEVO: obtener TODAS las citas del doctor en los próximos 30 días en UNA sola query
+  const precomputeAvailableDates = async (doctorUserId: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const endRange = new Date(today);
+    endRange.setDate(today.getDate() + 30);
+    endRange.setHours(23, 59, 59, 999);
+
+    try {
+      const qAppointments = query(
+        collection(db, 'appointments'),
+        where('doctorId', '==', doctorUserId),
+        where('date', '>=', Timestamp.fromDate(today)),
+        where('date', '<=', Timestamp.fromDate(endRange))
+      );
+
+      const snap = await getDocs(qAppointments);
+
+      // Construimos un mapa: { 'YYYY-MM-DD': [Date, Date, ...] }
+      const tempTakenByDate: Record<string, Date[]> = {};
+
+      snap.docs.forEach((docSnap) => {
+        const data = docSnap.data();
+        const d: Date | undefined = data.date?.toDate?.();
+        if (!d) return;
+        const key = dateToYMD(d);
+        if (!tempTakenByDate[key]) tempTakenByDate[key] = [];
+        tempTakenByDate[key].push(d);
+      });
+
+      setTakenByDate(tempTakenByDate);
+
+      const next30Days: string[] = [];
+      const marks: any = {};
+
+      const now = new Date();
+
+      for (let i = 0; i < 30; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        const dateStr = dateToYMD(date);
+
+        // No mostrar días en el pasado (por si today tiene horas raras)
+        if (date < now && dateToYMD(date) !== dateToYMD(now)) {
+          marks[dateStr] = { disabled: true };
+          continue;
+        }
+
+        const slots = generateTimeSlots(date);
+        const takenForDay = tempTakenByDate[dateStr] || [];
+
+        const available = slots.filter(
+          (slot) =>
+            !takenForDay.some(
+              (t) =>
+                Math.abs(t.getTime() - slot.getTime()) <
+                SLOT_DURATION_MINUTES * 60 * 1000
+            )
+        );
+
+        if (available.length > 0) {
+          next30Days.push(dateStr);
+          marks[dateStr] = { marked: true, dotColor: '#5A5CFF' };
+        } else {
+          marks[dateStr] = { disabled: true };
+        }
+      }
+
+      setAvailableDates(next30Days);
+      setMarkedDates(marks);
+    } catch (err) {
+      console.error('Error precomputando fechas disponibles:', err);
+      setAvailableDates([]);
+      setMarkedDates({});
+      setTakenByDate({});
+    }
+  };
+
+  // Cuando cambia el doctor, recalculamos fechas disponibles
   useEffect(() => {
     if (doctorId) {
-      precomputeAvailableDates();
+      precomputeAvailableDates(doctorId);
     } else {
       setAvailableDates([]);
       setMarkedDates({});
+      setTakenByDate({});
     }
     setSelectedDate(null);
     setSelectedSlot(null);
+    setAvailableSlots([]);
   }, [doctorId]);
 
+  // 👉 NUEVO: slots disponibles para un día usando el cache takenByDate (sin hacer queries)
+  const fetchAvailableSlots = (date: Date) => {
+    if (!doctorId) {
+      setAvailableSlots([]);
+      setSelectedSlot(null);
+      return;
+    }
+
+    const dateStr = dateToYMD(date);
+    const slots = generateTimeSlots(date);
+    const takenForDay = takenByDate[dateStr] || [];
+
+    const available = slots.filter(
+      (slot) =>
+        !takenForDay.some(
+          (t) =>
+            Math.abs(t.getTime() - slot.getTime()) <
+            SLOT_DURATION_MINUTES * 60 * 1000
+        )
+    );
+
+    setAvailableSlots(available);
+    setSelectedSlot(null);
+  };
+
+  // Cuando cambia la fecha seleccionada, recalcular horarios disponibles
   useEffect(() => {
     if (selectedDate && doctorId) {
       fetchAvailableSlots(selectedDate);
@@ -74,92 +208,10 @@ export default function CreateAppointment() {
       setAvailableSlots([]);
       setSelectedSlot(null);
     }
-  }, [selectedDate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, doctorId, takenByDate]);
 
   if (guardLoading || !allowed) return null;
-
-  const generateTimeSlots = (date: Date): Date[] => {
-    const slots: Date[] = [];
-    for (let hour = START_HOUR; hour < END_HOUR; hour++) {
-      for (let min = 0; min < 60; min += SLOT_DURATION_MINUTES) {
-        const slot = new Date(date);
-        slot.setHours(hour);
-        slot.setMinutes(min);
-        slot.setSeconds(0);
-        slot.setMilliseconds(0);
-        slots.push(new Date(slot));
-      }
-    }
-    return slots;
-  };
-
-  const precomputeAvailableDates = async () => {
-    const today = new Date();
-    const next30Days: string[] = [];
-
-    const marks: any = {};
-
-    for (let i = 0; i < 30; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      const dateStr = date.toISOString().split('T')[0];
-
-      const slots = generateTimeSlots(date);
-
-      const start = new Date(date);
-      start.setHours(START_HOUR, 0, 0, 0);
-      const end = new Date(date);
-      end.setHours(END_HOUR, 0, 0, 0);
-
-      const q = query(
-        collection(db, 'appointments'),
-        where('doctorId', '==', doctorId),
-        where('date', '>=', Timestamp.fromDate(start)),
-        where('date', '<=', Timestamp.fromDate(end))
-      );
-
-      const snap = await getDocs(q);
-      const taken = snap.docs.map(doc => doc.data().date.toDate());
-
-      const available = slots.filter(slot =>
-        !taken.some(t => Math.abs(t.getTime() - slot.getTime()) < 30 * 60 * 1000)
-      );
-
-      if (available.length > 0) {
-        next30Days.push(dateStr);
-        marks[dateStr] = { marked: true, dotColor: '#5A5CFF' };
-      } else {
-        marks[dateStr] = { disabled: true };
-      }
-    }
-
-    setAvailableDates(next30Days);
-    setMarkedDates(marks);
-  };
-
-  const fetchAvailableSlots = async (date: Date) => {
-    const slots = generateTimeSlots(date);
-    const start = new Date(date);
-    start.setHours(START_HOUR, 0, 0, 0);
-    const end = new Date(date);
-    end.setHours(END_HOUR, 0, 0, 0);
-
-    const q = query(
-      collection(db, 'appointments'),
-      where('doctorId', '==', doctorId),
-      where('date', '>=', Timestamp.fromDate(start)),
-      where('date', '<=', Timestamp.fromDate(end))
-    );
-
-    const snap = await getDocs(q);
-    const taken = snap.docs.map(doc => doc.data().date.toDate());
-
-    const available = slots.filter(slot =>
-      !taken.some(t => Math.abs(t.getTime() - slot.getTime()) < 30 * 60 * 1000)
-    );
-
-    setAvailableSlots(available);
-  };
 
   const sendPushNotification = async (
     expoPushToken: string,
@@ -187,33 +239,33 @@ export default function CreateAppointment() {
       Alert.alert('Error', 'Completa todos los campos, incluyendo fecha y horario.');
       return;
     }
-  
+
     const now = new Date();
     if (selectedSlot.getTime() <= now.getTime()) {
       Alert.alert('Error', 'La fecha y hora deben ser futuras.');
       return;
     }
-  
+
     const uid = auth.currentUser?.uid;
     const patientName = auth.currentUser?.displayName || 'Paciente';
-  
+
     if (!uid) {
       Alert.alert('Error', 'Sesión no válida.');
       return;
     }
-  
+
     setLoading(true);
     try {
       const doctorSnap = await getDocs(
         query(collection(db, 'doctors'), where('userId', '==', doctorId))
       );
-  
+
       const doctorData = doctorSnap.docs[0]?.data();
-  
+
       if (!doctorData) {
         throw new Error('No se pudo obtener la información del doctor.');
       }
-  
+
       const newAppointment = {
         patientId: uid,
         patientName,
@@ -227,9 +279,9 @@ export default function CreateAppointment() {
         status: 'pendiente',
         createdAt: Timestamp.now(),
       };
-  
+
       await addDoc(collection(db, 'appointments'), newAppointment);
-  
+
       // 🔔 Notificación push al doctor
       const expoPushToken = doctorData.expoPushToken;
       if (expoPushToken) {
@@ -237,20 +289,20 @@ export default function CreateAppointment() {
           hour: '2-digit',
           minute: '2-digit',
         });
-  
+
         const fecha = selectedSlot.toLocaleDateString('es-MX', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
         });
-  
+
         await sendPushNotification(
           expoPushToken,
           'Nueva cita agendada',
           `Consulta de ${patientName} para el ${fecha} a las ${hora}`
         );
       }
-  
+
       Alert.alert('Éxito', 'Cita agendada correctamente.');
       router.replace('/(tabs)/patient/appointments');
     } catch (error: any) {
@@ -259,7 +311,7 @@ export default function CreateAppointment() {
     } finally {
       setLoading(false);
     }
-  };  
+  };
 
   return (
     <KeyboardAvoidingView
@@ -289,14 +341,14 @@ export default function CreateAppointment() {
 
             <Text style={{ marginBottom: 8 }}>Selecciona una fecha</Text>
             <Calendar
-              onDayPress={day => {
+              onDayPress={(day) => {
                 const [year, month, dayNum] = day.dateString.split('-').map(Number);
                 setSelectedDate(new Date(year, month - 1, dayNum));
               }}
               markedDates={{
                 ...markedDates,
                 ...(selectedDate && {
-                  [selectedDate.toISOString().split('T')[0]]: {
+                  [dateToYMD(selectedDate)]: {
                     selected: true,
                     selectedColor: '#5A5CFF',
                   },
@@ -308,7 +360,7 @@ export default function CreateAppointment() {
           </>
         }
         data={availableSlots}
-        keyExtractor={item => item.toISOString()}
+        keyExtractor={(item) => item.toISOString()}
         renderItem={({ item }) => (
           <TouchableOpacity
             onPress={() => setSelectedSlot(item)}

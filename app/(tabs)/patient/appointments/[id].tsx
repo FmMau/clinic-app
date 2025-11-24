@@ -3,7 +3,7 @@ import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
@@ -56,22 +56,31 @@ export default function AppointmentDetail() {
   const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const { id } = useLocalSearchParams();
   const [appointment, setAppointment] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id || typeof id !== 'string' || !allowed) return;
+    const loadAppointment = async () => {
+      if (!id || typeof id !== 'string' || !allowed) return;
 
-    const unsubscribe = onSnapshot(doc(db, 'appointments', id), (docSnap) => {
-      if (docSnap.exists()) {
-        setAppointment({ id: docSnap.id, ...docSnap.data() });
-      } else {
+      try {
+        const snap = await getDoc(doc(db, 'appointments', id));
+        if (snap.exists()) {
+          setAppointment({ id: snap.id, ...snap.data() });
+        } else {
+          setAppointment(null);
+        }
+      } catch (err) {
+        console.error('Error obteniendo cita:', err);
         setAppointment(null);
+      } finally {
+        setLoading(false);
       }
-    });
+    };
 
-    return () => unsubscribe();
+    loadAppointment();
   }, [id, allowed]);
 
-  if (guardLoading) return <LoadingScreen message="Cargando cita..." />;
+  if (guardLoading || loading) return <LoadingScreen message="Cargando cita..." />;
   if (!allowed) return null;
   if (!appointment) return <Text style={{ padding: 20 }}>Cita no encontrada</Text>;
 
