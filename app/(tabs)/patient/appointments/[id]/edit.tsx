@@ -20,7 +20,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import DropDownPicker from 'react-native-dropdown-picker';
@@ -34,69 +34,77 @@ export default function EditAppointment() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
 
+  const appointmentId = Array.isArray(id) ? id[0] : id;
+
   const [appointment, setAppointment] = useState<any>(null);
   const [newDate, setNewDate] = useState<Date | null>(null);
   const [newReason, setNewReason] = useState('');
   const [selectedSlot, setSelectedSlot] = useState<Date | null>(null);
   const [availableSlots, setAvailableSlots] = useState<Date[]>([]);
+
   const [doctorId, setDoctorId] = useState('');
   const [doctorItems, setDoctorItems] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
-  const [markedDates, setMarkedDates] = useState<any>({});
-  const [loading, setLoading] = useState(false);
 
+  const [loadingAppointment, setLoadingAppointment] = useState(true);
+  const [updating, setUpdating] = useState(false);
+
+  // Cargar lista de doctores una sola vez
   useEffect(() => {
     const fetchDoctors = async () => {
-      const snap = await getDocs(collection(db, 'doctors'));
-      const list = snap.docs.map(doc => ({
-        label: `${doc.data().name} - ${doc.data().specialty}`,
-        value: doc.data().userId,
-      }));
-      setDoctorItems(list);
+      try {
+        const snap = await getDocs(collection(db, 'doctors'));
+        const list = snap.docs.map((docSnap) => ({
+          label: `${docSnap.data().name} - ${docSnap.data().specialty}`,
+          value: docSnap.data().userId,
+        }));
+        setDoctorItems(list);
+      } catch (err) {
+        console.error('Error obteniendo doctores:', err);
+      }
     };
     fetchDoctors();
   }, []);
 
+  // Cargar cita a editar
   useEffect(() => {
-    if (!id || typeof id !== 'string' || !allowed) return;
-
     const fetchData = async () => {
-      const docSnap = await getDoc(doc(db, 'appointments', id));
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        const dateObj = data.date?.toDate?.() ?? new Date();
-        setAppointment({ id: docSnap.id, ...data });
-        setNewDate(dateObj);
-        setSelectedSlot(dateObj);
-        setNewReason(data.reason || '');
-        setDoctorId(data.doctorId);
+      if (!appointmentId || typeof appointmentId !== 'string' || !allowed) {
+        setLoadingAppointment(false);
+        return;
+      }
+
+      try {
+        const docSnap = await getDoc(doc(db, 'appointments', appointmentId));
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const dateObj: Date = data.date?.toDate?.() ?? new Date();
+
+          setAppointment({ id: docSnap.id, ...data });
+          setNewDate(dateObj);
+          setSelectedSlot(dateObj);
+          setNewReason(data.reason || '');
+          setDoctorId(data.doctorId);
+        } else {
+          setAppointment(null);
+        }
+      } catch (err) {
+        console.error('Error obteniendo cita:', err);
+        setAppointment(null);
+      } finally {
+        setLoadingAppointment(false);
       }
     };
+
     fetchData();
-  }, [id, allowed]);
-
-  useEffect(() => {
-    if (newDate && doctorId) {
-      fetchAvailableSlots(newDate);
-    } else {
-      setAvailableSlots([]);
-      setSelectedSlot(null);
-    }
-  }, [newDate, doctorId]);
-
-  if (guardLoading) return <LoadingScreen message="Cargando cita..." />;
-  if (!allowed) return null;
-  if (!appointment) return <Text style={{ padding: 24 }}>Cita no encontrada</Text>;
+  }, [appointmentId, allowed]);
 
   const generateTimeSlots = (date: Date): Date[] => {
     const slots: Date[] = [];
     for (let hour = START_HOUR; hour < END_HOUR; hour++) {
       for (let min = 0; min < 60; min += SLOT_DURATION_MINUTES) {
         const slot = new Date(date);
-        slot.setHours(hour);
-        slot.setMinutes(min);
-        slot.setSeconds(0);
-        slot.setMilliseconds(0);
+        slot.setHours(hour, min, 0, 0);
         slots.push(new Date(slot));
       }
     }
@@ -104,33 +112,71 @@ export default function EditAppointment() {
   };
 
   const fetchAvailableSlots = async (date: Date) => {
+    if (!doctorId) {
+      setAvailableSlots([]);
+      setSelectedSlot(null);
+      return;
+    }
+
     const slots = generateTimeSlots(date);
+
     const start = new Date(date);
     start.setHours(START_HOUR, 0, 0, 0);
+
     const end = new Date(date);
     end.setHours(END_HOUR, 0, 0, 0);
 
-    const q = query(
-      collection(db, 'appointments'),
-      where('doctorId', '==', doctorId),
-      where('date', '>=', Timestamp.fromDate(start)),
-      where('date', '<=', Timestamp.fromDate(end))
-    );
+    try {
+      const qAppointments = query(
+        collection(db, 'appointments'),
+        where('doctorId', '==', doctorId),
+        where('date', '>=', Timestamp.fromDate(start)),
+        where('date', '<=', Timestamp.fromDate(end))
+      );
 
-    const snap = await getDocs(q);
-    const taken = snap.docs
-      .filter(doc => doc.id !== id) // excluir la actual cita
-      .map(doc => doc.data().date.toDate());
+      const snap = await getDocs(qAppointments);
+      const taken = snap.docs
+        .filter((d) => d.id !== appointmentId) // excluir la cita actual
+        .map((d) => d.data().date.toDate() as Date);
 
-    const available = slots.filter(slot =>
-      !taken.some(t => Math.abs(t.getTime() - slot.getTime()) < 30 * 60 * 1000)
-    );
+      const available = slots.filter(
+        (slot) =>
+          !taken.some(
+            (t) =>
+              Math.abs(t.getTime() - slot.getTime()) <
+              SLOT_DURATION_MINUTES * 60 * 1000
+          )
+      );
 
-    setAvailableSlots(available);
+      setAvailableSlots(available);
+
+      // Si la fecha que estaba seleccionada ya no está disponible, la deseleccionamos
+      if (
+        selectedSlot &&
+        !available.some((s) => s.getTime() === selectedSlot.getTime())
+      ) {
+        setSelectedSlot(null);
+      }
+    } catch (err) {
+      console.error('Error obteniendo horarios disponibles:', err);
+      setAvailableSlots([]);
+      setSelectedSlot(null);
+    }
   };
 
+  // Recalcular horarios cuando cambian fecha o doctor
+  useEffect(() => {
+    if (newDate && doctorId) {
+      fetchAvailableSlots(newDate);
+    } else {
+      setAvailableSlots([]);
+      setSelectedSlot(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newDate, doctorId]);
+
   const handleUpdate = async () => {
-    if (!selectedSlot || !newReason.trim() || !doctorId) {
+    if (!appointmentId || !selectedSlot || !newReason.trim() || !doctorId) {
       Alert.alert('Error', 'Completa todos los campos.');
       return;
     }
@@ -142,11 +188,18 @@ export default function EditAppointment() {
     }
 
     try {
-      const appointmentRef = doc(db, 'appointments', String(id));
+      setUpdating(true);
+
+      const appointmentRef = doc(db, 'appointments', String(appointmentId));
+
       const doctorSnap = await getDocs(
         query(collection(db, 'doctors'), where('userId', '==', doctorId))
       );
       const doctorData = doctorSnap.docs[0]?.data();
+
+      if (!doctorData) {
+        throw new Error('No se pudo obtener la información del doctor.');
+      }
 
       await updateDoc(appointmentRef, {
         doctorId,
@@ -160,12 +213,23 @@ export default function EditAppointment() {
       });
 
       Alert.alert('Cita actualizada.');
-      router.replace(`/(tabs)/patient/appointments/${id}`);
+      router.replace(`/(tabs)/patient/appointments/${appointmentId}`);
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'No se pudo actualizar la cita.');
+    } finally {
+      setUpdating(false);
     }
   };
+
+  // Loading / estados iniciales
+  if (guardLoading || loadingAppointment) {
+    return <LoadingScreen message="Cargando cita..." />;
+  }
+  if (!allowed) return null;
+  if (!appointment) {
+    return <Text style={{ padding: 24 }}>Cita no encontrada</Text>;
+  }
 
   return (
     <FlatList
@@ -191,25 +255,27 @@ export default function EditAppointment() {
 
           <Text style={{ marginBottom: 8 }}>Selecciona una nueva fecha</Text>
           <Calendar
-            onDayPress={day => {
+            onDayPress={(day) => {
               const [year, month, dayNum] = day.dateString.split('-').map(Number);
               setNewDate(new Date(year, month - 1, dayNum));
             }}
-            markedDates={{
-              ...(newDate && {
-                [newDate.toISOString().split('T')[0]]: {
-                  selected: true,
-                  selectedColor: '#5A5CFF',
-                },
-              }),
-            }}
+            markedDates={
+              newDate
+                ? {
+                    [newDate.toISOString().split('T')[0]]: {
+                      selected: true,
+                      selectedColor: '#5A5CFF',
+                    },
+                  }
+                : {}
+            }
             disableAllTouchEventsForDisabledDays
             style={{ marginBottom: 24 }}
           />
         </>
       }
       data={availableSlots}
-      keyExtractor={item => item.toISOString()}
+      keyExtractor={(item) => item.toISOString()}
       renderItem={({ item }) => (
         <TouchableOpacity
           onPress={() => setSelectedSlot(item)}
@@ -266,9 +332,9 @@ export default function EditAppointment() {
 
           <TouchableOpacity
             onPress={handleUpdate}
-            disabled={loading}
+            disabled={updating}
             style={{
-              backgroundColor: loading ? '#A0A3FF' : '#5A5CFF',
+              backgroundColor: updating ? '#A0A3FF' : '#5A5CFF',
               padding: 14,
               borderRadius: 8,
               alignItems: 'center',
@@ -284,7 +350,7 @@ export default function EditAppointment() {
               style={{ marginRight: 8 }}
             />
             <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
-              {loading ? 'Actualizando...' : 'Guardar cambios'}
+              {updating ? 'Actualizando...' : 'Guardar cambios'}
             </Text>
           </TouchableOpacity>
         </>

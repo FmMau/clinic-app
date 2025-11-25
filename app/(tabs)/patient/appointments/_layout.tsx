@@ -3,23 +3,26 @@ import { useUserRole } from '@/lib/firebase/useUserRole';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { deleteDoc, doc } from 'firebase/firestore';
-import { Alert, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, TouchableOpacity, View } from 'react-native';
 
 export default function AppointmentsLayout() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { role, loading } = useUserRole();
 
-  if (loading) return null; // Puedes mostrar un loader si prefieres
+  // id puede venir como string o string[]
+  const idParam = Array.isArray(id) ? id[0] : id;
 
   const handleDelete = async () => {
+    if (!idParam) return;
+
     Alert.alert('Eliminar cita', '¿Deseas eliminar esta cita permanentemente?', [
       { text: 'No', style: 'cancel' },
       {
         text: 'Sí',
         onPress: async () => {
           try {
-            await deleteDoc(doc(db, 'appointments', String(id)));
+            await deleteDoc(doc(db, 'appointments', String(idParam)));
             Alert.alert('Cita eliminada');
             router.replace('/(tabs)/patient/appointments');
           } catch (error) {
@@ -30,6 +33,31 @@ export default function AppointmentsLayout() {
       },
     ]);
   };
+
+  // Mientras carga el rol, opcionalmente mostramos un mini loader en el header
+  if (loading) {
+    return (
+      <Stack
+        screenOptions={{
+          headerShown: true,
+          animation: 'slide_from_right',
+          headerStyle: { backgroundColor: '#5A5CFF' },
+          headerTintColor: '#FFFFFF',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
+      >
+        <Stack.Screen
+          name="index"
+          options={{
+            title: 'Citas',
+            headerRight: () => (
+              <ActivityIndicator style={{ marginRight: 16 }} color="#fff" />
+            ),
+          }}
+        />
+      </Stack>
+    );
+  }
 
   return (
     <Stack
@@ -75,10 +103,12 @@ export default function AppointmentsLayout() {
             </TouchableOpacity>
           ),
           headerRight: () =>
-            role === 'paciente' && (
-              <View style={{ flexDirection: 'row', gap: 12, marginRight: 12 }}>
+            role === 'paciente' && idParam && (
+              <View style={{ flexDirection: 'row', gap: 16, marginRight: 12 }}>
                 <TouchableOpacity
-                  onPress={() => router.push(`/(tabs)/patient/appointments/${id}/edit`)}
+                  onPress={() =>
+                    router.push(`/(tabs)/patient/appointments/${idParam}/edit`)
+                  }
                 >
                   <Ionicons name="create-outline" size={22} color="#fff" />
                 </TouchableOpacity>

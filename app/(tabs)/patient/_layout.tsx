@@ -2,11 +2,24 @@ import { HapticTab } from '@/components/HapticTab';
 import { AnimatedTabIcon } from '@/components/ui/AnimatedTabIcon';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useUserRole } from '@/lib/firebase/useUserRole';
 import { Tabs } from 'expo-router';
+import { ComponentProps } from 'react';
 import { Platform } from 'react-native';
 
+function TabIcon(name: ComponentProps<typeof AnimatedTabIcon>['name']) {
+  return ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
+    <AnimatedTabIcon name={name} size={size} color={color} focused={focused} />
+  );
+}
+
 export default function PatientTabsLayout() {
+  const { role, loading } = useUserRole();
   const colorScheme = useColorScheme();
+
+  // Evita mostrar tabs si el rol está cargando o si no es paciente
+  if (loading) return null;
+  if (role !== 'paciente') return null;
 
   return (
     <Tabs
@@ -28,45 +41,39 @@ export default function PatientTabsLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size, focused }) => (
-            <AnimatedTabIcon name="home-outline" size={size} color={color} focused={focused} />
-          ),
+          tabBarIcon: TabIcon('home-outline'),
         }}
       />
+
       <Tabs.Screen
         name="appointments"
         options={{
           title: 'Citas',
-          tabBarIcon: ({ color, size, focused }) => (
-            <AnimatedTabIcon name="calendar-outline" size={size} color={color} focused={focused} />
-          ),
+          tabBarIcon: TabIcon('calendar-outline'),
         }}
       />
+
       <Tabs.Screen
         name="payments"
         options={{
           title: 'Pagos',
-          tabBarIcon: ({ color, size, focused }) => (
-            <AnimatedTabIcon name="card-outline" size={size} color={color} focused={focused} />
-          ),
+          tabBarIcon: TabIcon('card-outline'),
         }}
       />
+
       <Tabs.Screen
         name="records"
         options={{
           title: 'Historial',
-          tabBarIcon: ({ color, size, focused }) => (
-            <AnimatedTabIcon name="book-outline" size={size} color={color} focused={focused} />
-          ),
+          tabBarIcon: TabIcon('book-outline'),
         }}
       />
+
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ color, size, focused }) => (
-            <AnimatedTabIcon name="person-outline" size={size} color={color} focused={focused} />
-          ),
+          tabBarIcon: TabIcon('person-outline'),
         }}
       />
     </Tabs>

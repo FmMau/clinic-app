@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {
   collection,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -25,39 +26,54 @@ export default function PatientDashboard() {
   useEffect(() => {
     if (!uid || !allowed) return;
 
+    // 🔹 Solo las 2 citas más recientes
     const unsubscribeAppointments = onSnapshot(
       query(
         collection(db, 'appointments'),
         where('patientId', '==', uid),
-        orderBy('date', 'desc')
+        orderBy('date', 'desc'),
+        limit(2)
       ),
       (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        setAppointments(data.slice(0, 2));
+        const data = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+        }));
+        setAppointments(data);
       }
     );
 
+    // 🔹 Solo los 2 últimos registros médicos
     const unsubscribeRecords = onSnapshot(
       query(
         collection(db, 'medicalRecords'),
         where('patientId', '==', uid),
-        orderBy('createdAt', 'desc')
+        orderBy('createdAt', 'desc'),
+        limit(2)
       ),
       (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        setRecords(data.slice(0, 2));
+        const data = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+        }));
+        setRecords(data);
       }
     );
 
+    // 🔹 Solo los 2 pagos más recientes
     const unsubscribePayments = onSnapshot(
       query(
         collection(db, 'payments'),
         where('patientId', '==', uid),
-        orderBy('createdAt', 'desc')
+        orderBy('createdAt', 'desc'),
+        limit(2)
       ),
       (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        setPayments(data.slice(0, 2));
+        const data = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+        }));
+        setPayments(data);
       }
     );
 
@@ -72,7 +88,9 @@ export default function PatientDashboard() {
   if (!allowed) return null;
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#fff', padding: 20, paddingTop: 40 }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: '#fff', padding: 20, paddingTop: 40 }}
+    >
       <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 16 }}>
         Bienvenid@, Paciente
       </Text>
@@ -89,8 +107,15 @@ export default function PatientDashboard() {
           justifyContent: 'center',
         }}
       >
-        <Ionicons name="add-circle-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
-        <Text style={{ color: '#fff', fontWeight: 'bold' }}>Agendar nueva cita</Text>
+        <Ionicons
+          name="add-circle-outline"
+          size={20}
+          color="#fff"
+          style={{ marginRight: 8 }}
+        />
+        <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+          Agendar nueva cita
+        </Text>
       </TouchableOpacity>
 
       <Section icon="calendar-outline" title="Próximas Citas">
@@ -98,10 +123,19 @@ export default function PatientDashboard() {
           <Text style={{ color: '#999' }}>No tienes citas agendadas.</Text>
         ) : (
           appointments.map((a) => (
-            <TouchableOpacity key={a.id} onPress={() => router.push(`/(tabs)/patient/appointments/${a.id}`)}>
+            <TouchableOpacity
+              key={a.id}
+              onPress={() =>
+                router.push(`/(tabs)/patient/appointments/${a.id}`)
+              }
+            >
               <Card
                 title={a.doctor || 'Consulta médica'}
-                subtitle={a.date?.toDate ? formatDate(a.date.toDate()) : 'Sin fecha'}
+                subtitle={
+                  a.date?.toDate
+                    ? formatDate(a.date.toDate())
+                    : 'Sin fecha'
+                }
               />
             </TouchableOpacity>
           ))
@@ -113,12 +147,19 @@ export default function PatientDashboard() {
           <Text style={{ color: '#999' }}>No hay historial disponible.</Text>
         ) : (
           records.map((r) => (
-            <TouchableOpacity key={r.id} onPress={() => router.push(`/(tabs)/patient/records/${r.id}`)}>
+            <TouchableOpacity
+              key={r.id}
+              onPress={() => router.push(`/(tabs)/patient/records/${r.id}`)}
+            >
               <Card
                 title={r.diagnosis || 'Consulta sin diagnóstico'}
-                subtitle={r.createdAt?.seconds
-                  ? `Fecha: ${formatDate(new Date(r.createdAt.seconds * 1000))}`
-                  : 'Fecha no disponible'}
+                subtitle={
+                  r.createdAt?.seconds
+                    ? `Fecha: ${formatDate(
+                        new Date(r.createdAt.seconds * 1000)
+                      )}`
+                    : 'Fecha no disponible'
+                }
               />
             </TouchableOpacity>
           ))
@@ -172,8 +213,15 @@ function Section({
 }) {
   return (
     <View style={{ marginBottom: 24 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-        <Ionicons name={icon as any} size={20} color="#5A5CFF" style={{ marginRight: 8 }} />
+      <View
+        style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}
+      >
+        <Ionicons
+          name={icon as any}
+          size={20}
+          color="#5A5CFF"
+          style={{ marginRight: 8 }}
+        />
         <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{title}</Text>
       </View>
       {children}
@@ -204,10 +252,16 @@ function Card({
         elevation: 2,
       }}
     >
-      <Text style={{ color: '#5A5CFF', fontWeight: 'bold', marginBottom: 4 }}>{title}</Text>
+      <Text
+        style={{ color: '#5A5CFF', fontWeight: 'bold', marginBottom: 4 }}
+      >
+        {title}
+      </Text>
       <Text style={{ color: '#333' }}>{subtitle}</Text>
       {badge && (
-        <Text style={{ marginTop: 6, color: '#D97706', fontWeight: '600' }}>{badge}</Text>
+        <Text style={{ marginTop: 6, color: '#D97706', fontWeight: '600' }}>
+          {badge}
+        </Text>
       )}
     </View>
   );
