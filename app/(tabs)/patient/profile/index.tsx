@@ -3,7 +3,7 @@ import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
   Image,
@@ -22,15 +22,30 @@ export default function PatientProfileView() {
   const router = useRouter();
 
   useEffect(() => {
-    const uid = auth.currentUser?.uid;
-    if (!uid || !allowed) return;
+    const loadProfile = async () => {
+      const uid = auth.currentUser?.uid;
 
-    const unsubscribe = onSnapshot(doc(db, 'patients', uid), (snap) => {
-      if (snap.exists()) setData(snap.data());
-      setLoading(false);
-    });
+      if (!allowed || !uid) {
+        setLoading(false);
+        return;
+      }
 
-    return () => unsubscribe();
+      try {
+        const snap = await getDoc(doc(db, 'patients', uid));
+        if (snap.exists()) {
+          setData(snap.data());
+        } else {
+          setData(null);
+        }
+      } catch (err) {
+        console.error('Error cargando perfil:', err);
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
   }, [allowed]);
 
   if (guardLoading || loading) return <LoadingScreen message="Cargando perfil..." />;
@@ -42,11 +57,15 @@ export default function PatientProfileView() {
       <View style={styles.header}>
         <Image
           source={{
-            uri: data.photoURL || `https://ui-avatars.com/api/?name=${data.name}+${data.lastname}`,
+            uri:
+              data.photoURL ||
+              `https://ui-avatars.com/api/?name=${data.name}+${data.lastname}`,
           }}
           style={styles.avatar}
         />
-        <Text style={styles.name}>{data.name} {data.lastname}</Text>
+        <Text style={styles.name}>
+          {data.name} {data.lastname}
+        </Text>
         <Text style={styles.role}>Paciente</Text>
       </View>
 

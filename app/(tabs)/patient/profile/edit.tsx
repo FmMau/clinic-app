@@ -34,20 +34,36 @@ export default function PatientProfileEdit() {
   const router = useRouter();
 
   useEffect(() => {
-    const uid = auth.currentUser?.uid;
-    if (!uid || !allowed) return;
+    const loadProfile = async () => {
+      const uid = auth.currentUser?.uid;
 
-    const fetchProfile = async () => {
-      const docRef = doc(db, 'patients', uid);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) setData(snap.data());
-      setLoading(false);
+      if (!allowed || !uid) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const docRef = doc(db, 'patients', uid);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          setData(snap.data());
+        } else {
+          setData(null);
+        }
+      } catch (err) {
+        console.error('Error cargando perfil:', err);
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    fetchProfile();
+    loadProfile();
   }, [allowed]);
 
-  if (guardLoading || loading) return <LoadingScreen message="Cargando perfil..." />;
+  if (guardLoading || loading) {
+    return <LoadingScreen message="Cargando perfil..." />;
+  }
   if (!allowed) return null;
   if (!data) return <Text style={styles.status}>Perfil no encontrado</Text>;
 
@@ -71,14 +87,7 @@ export default function PatientProfileEdit() {
 
     let birthdateToSave: Timestamp;
     try {
-      const parsedDate =
-        birthdate instanceof Date
-          ? birthdate
-          : new Date(
-              typeof birthdate === 'string'
-                ? birthdate
-                : birthdate?.seconds * 1000 || Date.now()
-            );
+      const parsedDate = getValidDate(birthdate);
       if (isNaN(parsedDate.getTime())) throw new Error('Fecha inválida');
       birthdateToSave = Timestamp.fromDate(parsedDate);
     } catch {
@@ -119,7 +128,10 @@ export default function PatientProfileEdit() {
       Alert.alert('Permiso requerido', 'Se necesita acceso a la cámara');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.7 });
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 0.7,
+    });
     if (!result.canceled && result.assets.length > 0) {
       await uploadImageToStorage(result.assets[0].uri);
     }
@@ -134,6 +146,7 @@ export default function PatientProfileEdit() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.7,
+      allowsEditing: true,
     });
     if (!result.canceled && result.assets.length > 0) {
       await uploadImageToStorage(result.assets[0].uri);
@@ -152,7 +165,11 @@ export default function PatientProfileEdit() {
       const fileRef = ref(storage, `patients/${uid}/profile.jpg`);
       await uploadBytes(fileRef, blob);
       const url = await getDownloadURL(fileRef);
-      setData({ ...data, photoURL: url });
+
+      setData((prev: any) => ({
+        ...prev,
+        photoURL: url,
+      }));
     } catch (err) {
       console.error(err);
       Alert.alert('Error', 'No se pudo subir la imagen');
@@ -162,13 +179,18 @@ export default function PatientProfileEdit() {
   };
 
   const handleDeletePhoto = async () => {
-    try {
-      const uid = auth.currentUser?.uid;
-      if (!uid) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
 
+    try {
       const fileRef = ref(storage, `patients/${uid}/profile.jpg`);
       await deleteObject(fileRef);
-      setData({ ...data, photoURL: '' });
+
+      setData((prev: any) => ({
+        ...prev,
+        photoURL: '',
+      }));
+
       Alert.alert('Foto eliminada');
     } catch (err) {
       console.error(err);
@@ -177,36 +199,66 @@ export default function PatientProfileEdit() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 100 }}
+    >
       <View style={styles.header}>
         <TouchableOpacity onPress={handleChangePhoto}>
           <Image
             source={{
-              uri: data.photoURL || `https://ui-avatars.com/api/?name=${data.name}+${data.lastname}`,
+              uri:
+                data.photoURL ||
+                `https://ui-avatars.com/api/?name=${data.name}+${data.lastname}`,
             }}
             style={styles.avatar}
           />
         </TouchableOpacity>
-        <Text style={styles.name}>{data.name} {data.lastname}</Text>
+        <Text style={styles.name}>
+          {data.name} {data.lastname}
+        </Text>
         <Text style={styles.role}>Paciente</Text>
-        {uploading && <Text style={{ fontSize: 12, color: '#888' }}>Subiendo imagen...</Text>}
+        {uploading && (
+          <Text style={{ fontSize: 12, color: '#888' }}>
+            Subiendo imagen...
+          </Text>
+        )}
         {data.photoURL && (
           <TouchableOpacity onPress={handleDeletePhoto} style={{ marginTop: 8 }}>
-            <Text style={{ fontSize: 13, color: '#f43f5e' }}>Eliminar foto de perfil</Text>
+            <Text style={{ fontSize: 13, color: '#f43f5e' }}>
+              Eliminar foto de perfil
+            </Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {renderField("Nombre", data.name, (val) => setData({ ...data, name: val }), true)}
-      {renderField("Apellidos", data.lastname, (val) => setData({ ...data, lastname: val }), true)}
-      {renderField("Correo electrónico", data.email, undefined, false)}
-      {renderField("Teléfono", data.phone, (val) => setData({ ...data, phone: val }), true)}
-      {renderField("Dirección", data.address, (val) => setData({ ...data, address: val }), true)}
-      {renderField("Alergias", data.allergies, (val) => setData({ ...data, allergies: val }), true)}
-      {renderField("Sexo", data.gender, (val) => setData({ ...data, gender: val }), true)}
+      {renderField('Nombre', data.name, (val) =>
+        setData((prev: any) => ({ ...prev, name: val }))
+      )}
+      {renderField('Apellidos', data.lastname, (val) =>
+        setData((prev: any) => ({ ...prev, lastname: val }))
+      )}
+      {renderField(
+        'Correo electrónico',
+        data.email,
+        undefined,
+        false // no editable
+      )}
+      {renderField('Teléfono', data.phone, (val) =>
+        setData((prev: any) => ({ ...prev, phone: val }))
+      )}
+      {renderField('Dirección', data.address, (val) =>
+        setData((prev: any) => ({ ...prev, address: val }))
+      )}
+      {renderField('Alergias', data.allergies, (val) =>
+        setData((prev: any) => ({ ...prev, allergies: val }))
+      )}
+      {renderField('Sexo', data.gender, (val) =>
+        setData((prev: any) => ({ ...prev, gender: val }))
+      )}
 
       {renderField(
-        "Fecha de nacimiento",
+        'Fecha de nacimiento',
         formatDate(getValidDate(data.birthdate)),
         undefined,
         true,
@@ -220,18 +272,25 @@ export default function PatientProfileEdit() {
         date={getValidDate(data.birthdate)}
         maximumDate={new Date()}
         onConfirm={(date) => {
-          setData({ ...data, birthdate: date });
+          setData((prev: any) => ({ ...prev, birthdate: date }));
           setDateModalVisible(false);
         }}
         onCancel={() => setDateModalVisible(false)}
       />
 
-      {renderField("CURP", data.curp, (val) => setData({ ...data, curp: val }), true)}
+      {renderField('CURP', data.curp, (val) =>
+        setData((prev: any) => ({ ...prev, curp: val }))
+      )}
 
       <View style={styles.buttonRow}>
         <TouchableOpacity style={styles.editButton} onPress={handleSave}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name="checkmark-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+            <Ionicons
+              name="checkmark-outline"
+              size={20}
+              color="#fff"
+              style={{ marginRight: 8 }}
+            />
             <Text style={styles.editButtonText}>Guardar cambios</Text>
           </View>
         </TouchableOpacity>
@@ -244,29 +303,32 @@ function renderField(
   label: string,
   value: string,
   onChange?: (val: string) => void,
-  editable: boolean = false,
+  editable: boolean = true,
   isDate: boolean = false,
   onDatePress?: () => void
 ) {
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      {editable && isDate ? (
+      {isDate ? (
         <TouchableOpacity
           onPress={onDatePress}
+          disabled={!editable}
           style={{
-            backgroundColor: '#fff',
+            backgroundColor: editable ? '#fff' : '#f4f4f4',
             borderWidth: 1,
             borderColor: '#ccc',
             borderRadius: 8,
             padding: 10,
           }}
         >
-          <Text style={{ color: '#444' }}>{value || 'Selecciona una fecha'}</Text>
+          <Text style={{ color: '#444' }}>
+            {value || 'Selecciona una fecha'}
+          </Text>
         </TouchableOpacity>
       ) : (
         <TextInput
-          value={value}
+          value={value || ''}
           onChangeText={onChange}
           editable={editable}
           selectTextOnFocus={editable}
@@ -282,7 +344,7 @@ function renderField(
 
 function formatDate(value: any) {
   try {
-    const date = new Date(value);
+    const date = getValidDate(value);
     return date.toLocaleDateString('es-MX', {
       year: 'numeric',
       month: 'long',
