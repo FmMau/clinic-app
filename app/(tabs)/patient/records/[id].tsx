@@ -16,61 +16,105 @@ import {
 export default function RecordDetail() {
   const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const { id } = useLocalSearchParams();
+  const recordId = Array.isArray(id) ? id[0] : id;
+
   const router = useRouter();
+
   const [record, setRecord] = useState<any>(null);
   const [doctor, setDoctor] = useState<any>(null);
   const [patient, setPatient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchRecord = async () => {
-      if (!id || typeof id !== 'string' || !allowed) return;
-
-      const docRef = doc(db, 'medicalRecords', id);
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setRecord(data);
-
-        // Cargar doctor
-        if (data.doctorId) {
-          const doctorSnap = await getDoc(doc(db, 'doctors', data.doctorId));
-          if (doctorSnap.exists()) setDoctor(doctorSnap.data());
-        }
-
-        // Cargar paciente
-        if (data.patientId) {
-          const patientSnap = await getDoc(doc(db, 'patients', data.patientId));
-          if (patientSnap.exists()) setPatient(patientSnap.data());
-        }
+    const loadRecord = async () => {
+      if (!allowed || !recordId) {
+        setLoading(false);
+        return;
       }
 
-      setLoading(false);
+      try {
+        const recordSnap = await getDoc(doc(db, 'medicalRecords', recordId));
+
+        if (!recordSnap.exists()) {
+          setRecord(null);
+          setLoading(false);
+          return;
+        }
+
+        const data = recordSnap.data();
+        setRecord(data);
+
+        // Cargar doctor y paciente en paralelo
+        const promises = [];
+
+        if (data.doctorId) {
+          promises.push(
+            getDoc(doc(db, 'doctors', data.doctorId)).catch(() => null)
+          );
+        } else {
+          promises.push(null);
+        }
+
+        if (data.patientId) {
+          promises.push(
+            getDoc(doc(db, 'patients', data.patientId)).catch(() => null)
+          );
+        } else {
+          promises.push(null);
+        }
+
+        const [doctorSnap, patientSnap] = await Promise.all(promises);
+
+        if (doctorSnap?.exists()) setDoctor(doctorSnap.data());
+        if (patientSnap?.exists()) setPatient(patientSnap.data());
+      } catch (err) {
+        console.error('Error cargando record:', err);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    fetchRecord();
-  }, [id, allowed]);
+    loadRecord();
+  }, [allowed, recordId]);
 
-  if (guardLoading || loading) return <LoadingScreen message="Cargando récord..." />;
+  if (guardLoading || loading)
+    return <LoadingScreen message="Cargando récord..." />;
+
   if (!allowed) return null;
-  if (!record) return <Text style={{ padding: 20 }}>Registro no encontrado</Text>;
+
+  if (!record)
+    return <Text style={{ padding: 20 }}>Registro no encontrado</Text>;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 100 }}
+    >
       <Section icon="person-outline" title="Información del Paciente">
         <Info label="Nombre" value={patient?.name || 'N/A'} />
-        <Info label="Fecha de nacimiento" value={formatDate(patient?.birthdate) || 'N/A'} />
-        <Info label="Fecha del registro" value={formatDate(record.date || record.createdAt)} />
+        <Info
+          label="Fecha de nacimiento"
+          value={formatDate(patient?.birthdate)}
+        />
+        <Info
+          label="Fecha del registro"
+          value={formatDate(record.date || record.createdAt)}
+        />
       </Section>
 
       <Section icon="medkit-outline" title="Médico Responsable">
         <Info label="Nombre" value={doctor?.name || 'No especificado'} />
-        <Info label="Especialidad" value={doctor?.specialty || 'General'} />
+        <Info
+          label="Especialidad"
+          value={doctor?.specialty || 'General'}
+        />
       </Section>
 
       <Section icon="pulse-outline" title="Diagnóstico">
-        <Info label="Condición" value={record.condition || record.diagnosis || 'No especificado'} />
+        <Info
+          label="Condición"
+          value={record.condition || record.diagnosis || 'No especificado'}
+        />
         <Info label="Gravedad" value={record.severity || 'No especificado'} />
       </Section>
 
@@ -91,7 +135,12 @@ export default function RecordDetail() {
         onPress={() => router.push('/(tabs)/patient/appointments/create')}
         style={styles.button}
       >
-        <Ionicons name="calendar-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+        <Ionicons
+          name="calendar-outline"
+          size={18}
+          color="#fff"
+          style={{ marginRight: 6 }}
+        />
         <Text style={styles.buttonText}>Agendar Seguimiento</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -109,8 +158,15 @@ function Section({
 }) {
   return (
     <View style={{ marginBottom: 20 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-        <Ionicons name={icon} size={16} color="#4F46E5" style={{ marginRight: 6 }} />
+      <View
+        style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}
+      >
+        <Ionicons
+          name={icon}
+          size={16}
+          color="#4F46E5"
+          style={{ marginRight: 6 }}
+        />
         <Text style={styles.sectionTitle}>{title}</Text>
       </View>
       <View style={styles.card}>{children}</View>
@@ -127,9 +183,10 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatDate(value: string | { seconds: number } | undefined) {
+function formatDate(value: any) {
   try {
     if (!value) return 'N/A';
+
     const date =
       typeof value === 'string'
         ? new Date(value)
@@ -150,13 +207,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: '#f9f9f9',
-  },
-  header: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    fontStyle: 'italic',
-    marginBottom: 20,
-    color: '#333',
   },
   sectionTitle: {
     fontSize: 16,

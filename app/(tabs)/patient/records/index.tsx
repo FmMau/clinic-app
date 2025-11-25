@@ -7,13 +7,15 @@ import { useRouter } from 'expo-router';
 import {
   collection,
   getDocs,
-  onSnapshot,
+  limit,
   orderBy,
   query,
+  startAfter,
   where,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Platform,
   Text,
@@ -22,64 +24,137 @@ import {
   View,
 } from 'react-native';
 
+const PAGE_SIZE = 10;
+
 export default function MedicalRecordsIndex() {
   const { loading: guardLoading, allowed } = useRoleGuard(['paciente', 'doctor']);
   const router = useRouter();
   const { user } = useAuth();
+
   const [records, setRecords] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [doctorMap, setDoctorMap] = useState<Record<string, any>>({});
 
-  // 🔹 Obtener doctores
+  const [loadingDoctors, setLoadingDoctors] = useState(true);
+  const [loadingRecords, setLoadingRecords] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [lastVisible, setLastVisible] = useState<any>(null);
+  const [hasMore, setHasMore] = useState(true);
+
+  const uid = user?.uid;
+
+  // 🔹 Obtener doctores una sola vez
   useEffect(() => {
     const fetchDoctors = async () => {
-      const snap = await getDocs(collection(db, 'doctors'));
-      const map: Record<string, any> = {};
-      snap.forEach((doc) => {
-        map[doc.id] = doc.data();
-      });
-      setDoctorMap(map);
+      try {
+        const snap = await getDocs(collection(db, 'doctors'));
+        const map: Record<string, any> = {};
+        snap.forEach((docSnap) => {
+          map[docSnap.id] = docSnap.data();
+        });
+        setDoctorMap(map);
+      } catch (err) {
+        console.error('Error obteniendo doctores:', err);
+      } finally {
+        setLoadingDoctors(false);
+      }
     };
 
     fetchDoctors();
   }, []);
 
-  // 🔹 Obtener récords del paciente
+  // 🔹 Obtener récords del paciente con paginación
+  const fetchRecords = async (reset = false) => {
+    if (!uid || !allowed) {
+      setLoadingRecords(false);
+      return;
+    }
+
+    if (reset) {
+      setLoadingRecords(true);
+      setHasMore(true);
+      setLastVisible(null);
+      setRecords([]);
+      setFiltered([]);
+    } else {
+      if (!hasMore || loadingMore) return;
+      setLoadingMore(true);
+    }
+
+    try {
+      const baseCollection = collection(db, 'medicalRecords');
+
+      let q: any = query(
+        baseCollection,
+        where('patientId', '==', uid),
+        orderBy('createdAt', 'desc'),
+        limit(PAGE_SIZE)
+      );
+
+      if (!reset && lastVisible) {
+        q = query(
+          baseCollection,
+          where('patientId', '==', uid),
+          orderBy('createdAt', 'desc'),
+          startAfter(lastVisible),
+          limit(PAGE_SIZE)
+        );
+      }
+
+      const snapshot = await getDocs(q);
+
+      const fetched = snapshot.docs.map((docSnap) => {
+        const data = (docSnap.data() ?? {}) as Record<string, any>;
+        return {
+          id: docSnap.id,
+          ...data,
+        };
+      });
+
+      setRecords((prev) => (reset ? fetched : [...prev, ...fetched]));
+      setFiltered((prev) => (reset ? fetched : [...prev, ...fetched]));
+
+      if (snapshot.docs.length > 0) {
+        setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
+        setHasMore(snapshot.docs.length === PAGE_SIZE);
+      } else {
+        setHasMore(false);
+      }
+    } catch (err) {
+      console.error('Error obteniendo historial clínico:', err);
+      setHasMore(false);
+    } finally {
+      setLoadingRecords(false);
+      setLoadingMore(false);
+    }
+  };
+
   useEffect(() => {
-    if (!user?.uid || !allowed) return;
+    if (!uid || !allowed) {
+      setLoadingRecords(false);
+      return;
+    }
+    fetchRecords(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, allowed]);
 
-    const q = query(
-      collection(db, 'medicalRecords'),
-      where('patientId', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setRecords(data);
-      setFiltered(data);
-    });
-
-    return () => unsubscribe();
-  }, [user, allowed]);
-
-  // 🔹 Filtro de búsqueda
+  // 🔹 Filtro de búsqueda (sobre los cargados)
   useEffect(() => {
     if (!search.trim()) {
       setFiltered(records);
     } else {
       const lower = search.toLowerCase();
       setFiltered(
-        records.filter((r) =>
-          r.title?.toLowerCase().includes(lower) ||
-          r.result?.toLowerCase().includes(lower) ||
-          r.notes?.toLowerCase().includes(lower) ||
-          doctorMap[r.doctorId]?.name?.toLowerCase().includes(lower)
-        )
+        records.filter((r) => {
+          const doctorName = doctorMap[r.doctorId]?.name?.toLowerCase() || '';
+          return (
+            r.title?.toLowerCase().includes(lower) ||
+            r.result?.toLowerCase().includes(lower) ||
+            r.notes?.toLowerCase().includes(lower) ||
+            doctorName.includes(lower)
+          );
+        })
       );
     }
   }, [search, records, doctorMap]);
@@ -88,7 +163,7 @@ export default function MedicalRecordsIndex() {
     router.push(`/(tabs)/patient/records/${id}`);
   };
 
-  if (guardLoading || Object.keys(doctorMap).length === 0) {
+  if (guardLoading || loadingDoctors || loadingRecords) {
     return <LoadingScreen message="Cargando historial clínico..." />;
   }
 
@@ -157,7 +232,12 @@ export default function MedicalRecordsIndex() {
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-              <Ionicons name="person-circle-outline" size={14} color="#999" style={{ marginRight: 4 }} />
+              <Ionicons
+                name="person-circle-outline"
+                size={14}
+                color="#999"
+                style={{ marginRight: 4 }}
+              />
               <Text style={{ color: '#555', fontSize: 13 }}>
                 {doctorMap[item.doctorId]?.name || 'Nombre del doctor no disponible'}
               </Text>
@@ -177,6 +257,35 @@ export default function MedicalRecordsIndex() {
             )}
           </TouchableOpacity>
         )}
+        ListFooterComponent={
+          hasMore ? (
+            <View style={{ marginTop: 8, alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => fetchRecords(false)}
+                disabled={loadingMore}
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 20,
+                  borderRadius: 8,
+                  backgroundColor: '#5A5CFF',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
+                {loadingMore && (
+                  <ActivityIndicator
+                    size="small"
+                    color="#fff"
+                    style={{ marginRight: 8 }}
+                  />
+                )}
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                  {loadingMore ? 'Cargando...' : 'Cargar más'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null
+        }
       />
     </View>
   );
@@ -184,9 +293,10 @@ export default function MedicalRecordsIndex() {
 
 function formatDate(value: string | { seconds: number }) {
   try {
-    const date = typeof value === 'string'
-      ? new Date(value)
-      : new Date(value.seconds * 1000);
+    const date =
+      typeof value === 'string'
+        ? new Date(value)
+        : new Date(value.seconds * 1000);
 
     return date.toLocaleDateString('es-MX', {
       day: '2-digit',
