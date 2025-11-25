@@ -14,64 +14,95 @@ export default function DoctorTabsLayout() {
   if (guardLoading) return <LoadingScreen message="Validando acceso..." />;
   if (!allowed) return null;
 
+  const isDark = colorScheme === 'dark';
+
   return (
     <Tabs
+      initialRouteName="index"
       screenOptions={{
-      headerShown: false,
-      tabBarButton: HapticTab,
-      tabBarBackground: TabBarBackground,
-      tabBarActiveTintColor: '#FFFFFF',
-      tabBarInactiveTintColor: '#C7C7FF',
-      tabBarStyle: {
-        backgroundColor: '#4F46E5',
-        borderTopWidth: 0,
-        height: 70,
-        paddingBottom: Platform.OS === 'ios' ? 20 : 10,
-      },
+        headerShown: false,
+        tabBarButton: HapticTab,
+        tabBarBackground: TabBarBackground,
+        tabBarActiveTintColor: isDark ? '#E0E7FF' : '#FFFFFF',
+        tabBarInactiveTintColor: isDark ? '#9CA3AF' : '#C7C7FF',
+        tabBarStyle: {
+          backgroundColor: isDark ? '#1F2937' : '#4F46E5',
+          borderTopWidth: 0,
+          height: 70,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+        },
       }}
     >
       <Tabs.Screen
-      name="index"
-      options={{
-        title: 'Inicio',
-        tabBarIcon: ({ color, size, focused }) => (
-        <AnimatedTabIcon name="home-outline" size={size} color={color} focused={focused} />
-        ),
-      }}
+        name="index"
+        options={{
+          title: 'Inicio',
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon
+              name="home-outline"
+              size={size}
+              color={color}
+              focused={focused}
+            />
+          ),
+        }}
       />
       <Tabs.Screen
-      name="consultation"
-      options={{
-        title: 'Diagnostico',
-        tabBarIcon: ({ color, size, focused }) => (
-        <AnimatedTabIcon name="medkit-outline" size={size} color={color} focused={focused} />
-        ),
-      }}
+        name="consultation"
+        options={{
+          title: 'Diagnóstico',
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon
+              name="medkit-outline"
+              size={size}
+              color={color}
+              focused={focused}
+            />
+          ),
+        }}
       />
       <Tabs.Screen
-      name="records"
-      options={{
-        title: 'Historiales',
-        tabBarIcon: ({ color, size, focused }) => (
-        <AnimatedTabIcon name="document-text-outline" size={size} color={color} focused={focused} />
-        ),
-      }}
+        name="records"
+        options={{
+          title: 'Historiales',
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon
+              name="document-text-outline"
+              size={size}
+              color={color}
+              focused={focused}
+            />
+          ),
+        }}
       />
       <Tabs.Screen
-      name="payments"
-      options={{
-        title: 'Pagos',
-        tabBarIcon: ({ color, size, focused }) => (
-        <AnimatedTabIcon name="cash-outline" size={size} color={color} focused={focused} />
-        ),
-      }}
+        name="payments"
+        options={{
+          title: 'Pagos',
+          tabBarIcon: ({ color, size, focused }) => (
+            <AnimatedTabIcon
+              name="cash-outline"
+              size={size}
+              color={color}
+              focused={focused}
+            />
+          ),
+        }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Perfil',
           tabBarIcon: ({ color, size, focused }) => (
-            <AnimatedTabIcon name="person-outline" size={size} color={color} focused={focused} />
+            <AnimatedTabIcon
+              name="person-outline"
+              size={size}
+              color={color}
+              focused={focused}
+            />
           ),
         }}
       />
