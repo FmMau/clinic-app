@@ -16,55 +16,76 @@ import {
 export default function PaymentAndReview() {
   const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const { id } = useLocalSearchParams(); // paymentId
+  const paymentId = Array.isArray(id) ? id[0] : id;
+
   const router = useRouter();
 
   const [method, setMethod] = useState<string | null>(null);
   const [rating, setRating] = useState(4);
   const [comments, setComments] = useState('');
   const [amount, setAmount] = useState<number | null>(null);
+
   const [loading, setLoading] = useState(true);
 
+  // Cargar datos del pago
   useEffect(() => {
-    if (!id || typeof id !== 'string' || !allowed) return;
-
     const fetchPayment = async () => {
-      const docSnap = await getDoc(doc(db, 'payments', id));
-      if (!docSnap.exists()) {
-        Alert.alert('Error', 'Pago no encontrado');
-        router.back();
+      if (!allowed || !paymentId) {
+        setLoading(false);
         return;
       }
 
-      const data = docSnap.data();
+      try {
+        const snap = await getDoc(doc(db, 'payments', paymentId));
+        if (!snap.exists()) {
+          Alert.alert('Error', 'Pago no encontrado');
+          router.back();
+          return;
+        }
 
-      if (data.status !== 'pagado') {
-        Alert.alert('Error', 'Este pago aún no ha sido completado.');
-        router.replace(`/(tabs)/patient/payments/${id}/pay`);
-        return;
+        const data = snap.data();
+
+        if (data.status !== 'pagado') {
+          Alert.alert('Error', 'Este pago aún no ha sido completado.');
+          router.replace(`/(tabs)/patient/payments/${paymentId}/pay`);
+          return;
+        }
+
+        setAmount(data.amount);
+      } catch (err) {
+        console.error('Error obteniendo pago:', err);
+        Alert.alert('Error', 'No fue posible cargar el pago.');
+      } finally {
+        setLoading(false);
       }
-
-      setAmount(data.amount);
-      setLoading(false);
     };
 
     fetchPayment();
-  }, [id, allowed]);
+  }, [allowed, paymentId]);
 
+  // Enviar valoración
   const handleSubmit = async () => {
-
     try {
-      const docRef = doc(db, 'payments', id as string);
-      await updateDoc(docRef, {
+      if (!paymentId) return;
+
+      if (!method) {
+        Alert.alert('Error', 'Selecciona un método de pago.');
+        return;
+      }
+
+      const ref = doc(db, 'payments', paymentId);
+
+      await updateDoc(ref, {
         method,
         rating,
-        comments,
+        comments: comments.trim(),
       });
 
       Alert.alert('Gracias', 'Tu valoración ha sido registrada.');
       router.push('/(tabs)/patient/payments');
-    } catch (error) {
-      console.error('Error al actualizar:', error);
-      Alert.alert('Error', 'No se pudo registrar la valoración.');
+    } catch (err) {
+      console.error('Error al guardar valoración:', err);
+      Alert.alert('Error', 'No se pudo guardar la valoración.');
     }
   };
 
@@ -78,6 +99,7 @@ export default function PaymentAndReview() {
     </TouchableOpacity>
   );
 
+  // Loading: permisos o cargo del pago
   if (guardLoading || loading || amount === null) {
     return <LoadingScreen message="Cargando pago y valoración..." />;
   }
@@ -90,6 +112,7 @@ export default function PaymentAndReview() {
         Pagos y Valoraciones
       </Text>
 
+      {/* Monto pagado */}
       <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>Total pagado</Text>
       <View
         style={{
@@ -102,6 +125,7 @@ export default function PaymentAndReview() {
         <Text style={{ fontSize: 18 }}>${amount.toFixed(2)}</Text>
       </View>
 
+      {/* Estrellas */}
       <Text style={{ fontWeight: 'bold', marginVertical: 16 }}>
         Calificación del médico
       </Text>
@@ -109,6 +133,42 @@ export default function PaymentAndReview() {
         {[...Array(5)].map((_, i) => renderStar(i))}
       </View>
 
+      {/* Método de pago */}
+      <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>
+        Método de Pago usado
+      </Text>
+
+      <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
+        <TouchableOpacity
+          onPress={() => setMethod('Tarjeta')}
+          style={{
+            paddingVertical: 10,
+            paddingHorizontal: 16,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: method === 'Tarjeta' ? '#4F46E5' : '#ccc',
+            backgroundColor: method === 'Tarjeta' ? '#E8E9FF' : '#fff',
+          }}
+        >
+          <Text style={{ fontWeight: 'bold' }}>Tarjeta</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setMethod('Efectivo')}
+          style={{
+            paddingVertical: 10,
+            paddingHorizontal: 16,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: method === 'Efectivo' ? '#4F46E5' : '#ccc',
+            backgroundColor: method === 'Efectivo' ? '#E8E9FF' : '#fff',
+          }}
+        >
+          <Text style={{ fontWeight: 'bold' }}>Efectivo</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Comentarios */}
       <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>Comentarios</Text>
       <TextInput
         placeholder="Escribe tus comentarios aquí..."

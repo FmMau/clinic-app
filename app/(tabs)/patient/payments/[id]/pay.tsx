@@ -12,6 +12,8 @@ import { WebView } from 'react-native-webview';
 export default function PayScreen() {
   const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const { id } = useLocalSearchParams(); // paymentId
+  const paymentId = Array.isArray(id) ? id[0] : id;
+
   const { user } = useAuth();
   const router = useRouter();
 
@@ -20,10 +22,14 @@ export default function PayScreen() {
 
   useEffect(() => {
     const startPayment = async () => {
-      if (!id || typeof id !== 'string' || !user?.uid || !allowed) return;
+      // Si aún no está permitido o faltan datos, no hacemos nada
+      if (!allowed || !paymentId || !user?.uid) {
+        setLoading(false);
+        return;
+      }
 
       try {
-        const paymentDoc = await getDoc(doc(db, 'payments', id));
+        const paymentDoc = await getDoc(doc(db, 'payments', paymentId));
         if (!paymentDoc.exists()) {
           Alert.alert('Error', 'Pago no encontrado.');
           router.back();
@@ -43,13 +49,13 @@ export default function PayScreen() {
         const createCheckout = httpsCallable(functions, 'createCheckoutSession');
         const res: any = await createCheckout({
           amount,
-          paymentId: id,
+          paymentId,
           patientId: user.uid,
         });
 
         setCheckoutUrl(res.data.url);
       } catch (error: any) {
-        console.error('Error al crear sesión de pago:', error.message || error);
+        console.error('Error al crear sesión de pago:', error?.message || error);
         Alert.alert('Error', 'No se pudo iniciar el pago.');
         router.back();
       } finally {
@@ -58,13 +64,20 @@ export default function PayScreen() {
     };
 
     startPayment();
-  }, [id, user, allowed]);
+  }, [allowed, paymentId, user?.uid, router]);
 
-  if (guardLoading || loading || !checkoutUrl) {
-    return <LoadingScreen message="Generando sesión de pago..." />;
+  // Primero: sigo cargando permisos
+  if (guardLoading) {
+    return <LoadingScreen message="Verificando permisos..." />;
   }
 
+  // Si no tiene rol de paciente, nada de pantalla de pago
   if (!allowed) return null;
+
+  // Luego: generando sesión o esperando URL
+  if (loading || !checkoutUrl) {
+    return <LoadingScreen message="Generando sesión de pago..." />;
+  }
 
   return (
     <WebView
@@ -74,11 +87,16 @@ export default function PayScreen() {
       domStorageEnabled
       allowsBackForwardNavigationGestures={false}
       onNavigationStateChange={(navState) => {
+        // Cuando Stripe redirige al success de tu app:
         if (navState.url.includes('https://medaccess.com/stripe-success')) {
-          const url = new URL(navState.url);
-          const paymentId = url.searchParams.get('paymentId');
-          if (paymentId) {
-            router.replace(`/(tabs)/patient/payments/${paymentId}/review`);
+          try {
+            const url = new URL(navState.url);
+            const paidId = url.searchParams.get('paymentId') || paymentId;
+            if (paidId) {
+              router.replace(`/(tabs)/patient/payments/${paidId}/review`);
+            }
+          } catch (err) {
+            console.error('Error parseando URL de éxito:', err);
           }
         }
       }}

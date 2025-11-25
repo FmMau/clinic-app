@@ -6,31 +6,54 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 export default function StripeSuccessInternal() {
-  const { id } = useLocalSearchParams(); // paymentId
+  const { id } = useLocalSearchParams(); // paymentId desde query
+  const paymentId = Array.isArray(id) ? id[0] : id;
+
   const router = useRouter();
-  const [status, setStatus] = useState<'esperando' | 'redireccionando'>('esperando');
+  const [status, setStatus] = useState<'esperando' | 'redireccionando'>(
+    'esperando'
+  );
 
   useEffect(() => {
-    if (!id || typeof id !== 'string') return;
+    if (!paymentId || typeof paymentId !== 'string') return;
 
-    const ref = doc(db, 'payments', id);
-    const unsubscribe = onSnapshot(ref, (snap) => {
-      if (!snap.exists()) return;
+    let hasRedirected = false;
 
-      const data = snap.data();
-      if (data.status === 'pagado') {
-        setStatus('redireccionando');
-        setTimeout(() => {
-          router.replace(`/(tabs)/patient/payments/${id}/review`);
-        }, 1500);
+    const ref = doc(db, 'payments', paymentId);
+    const unsubscribe = onSnapshot(
+      ref,
+      (snap) => {
+        if (!snap.exists()) return;
+
+        const data = snap.data();
+        if (data.status === 'pagado' && !hasRedirected) {
+          hasRedirected = true;
+          setStatus('redireccionando');
+
+          setTimeout(() => {
+            router.replace(
+              `/(tabs)/patient/payments/${paymentId}/review`
+            );
+          }, 1500);
+        }
+      },
+      (error) => {
+        console.error('Error al escuchar estado de pago:', error);
       }
-    });
+    );
 
     return () => unsubscribe();
-  }, [id]);
+  }, [paymentId, router]);
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+    <View
+      style={{
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 32,
+      }}
+    >
       <LoadingScreen
         message={
           status === 'esperando'

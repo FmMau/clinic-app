@@ -3,41 +3,48 @@ import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 export default function PaymentDetail() {
   const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const { id } = useLocalSearchParams();
+  const paymentId = Array.isArray(id) ? id[0] : id;
+
   const [payment, setPayment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id || typeof id !== 'string' || !allowed) return;
+    const loadPayment = async () => {
+      if (!paymentId || typeof paymentId !== 'string' || !allowed) {
+        setLoading(false);
+        return;
+      }
 
-    const docRef = doc(db, 'payments', id);
+      try {
+        const docRef = doc(db, 'payments', paymentId);
+        const docSnap = await getDoc(docRef);
 
-    const unsubscribe = onSnapshot(
-      docRef,
-      (docSnap) => {
         if (docSnap.exists()) {
-          setPayment(docSnap.data());
+          setPayment({ id: docSnap.id, ...docSnap.data() });
         } else {
           setPayment(null);
         }
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Error al obtener detalle del pago en tiempo real:', error);
+      } catch (error) {
+        console.error('Error al obtener detalle del pago:', error);
+        setPayment(null);
+      } finally {
         setLoading(false);
       }
-    );
+    };
 
-    return () => unsubscribe();
-  }, [id, allowed]);
+    loadPayment();
+  }, [paymentId, allowed]);
 
-  if (guardLoading || loading) return <LoadingScreen message="Cargando detalle de pago..." />;
+  if (guardLoading || loading) {
+    return <LoadingScreen message="Cargando detalle de pago..." />;
+  }
   if (!allowed) return null;
   if (!payment) return <Text style={{ padding: 20 }}>Pago no encontrado</Text>;
 
@@ -47,7 +54,14 @@ export default function PaymentDetail() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 24 }}>
-      <Text style={{ fontSize: 20, fontWeight: 'bold', fontStyle: 'italic', marginBottom: 12 }}>
+      <Text
+        style={{
+          fontSize: 20,
+          fontWeight: 'bold',
+          fontStyle: 'italic',
+          marginBottom: 12,
+        }}
+      >
         Pago Completado
       </Text>
 
@@ -78,7 +92,9 @@ export default function PaymentDetail() {
           }}
         >
           <Text style={{ fontWeight: 'bold', fontSize: 16 }}>Total</Text>
-          <Text style={{ fontWeight: 'bold', fontSize: 16 }}>${total.toFixed(2)}</Text>
+          <Text style={{ fontWeight: 'bold', fontSize: 16 }}>
+            ${total.toFixed(2)}
+          </Text>
         </View>
       </Card>
 
@@ -99,13 +115,22 @@ export default function PaymentDetail() {
       <SectionTitle title="Confirmación" />
       <Card>
         <Text>
-          Su pago ha sido procesado exitosamente.{"\n"}
+          Su pago ha sido procesado exitosamente.{'\n'}
           Gracias por confiar en nuestros servicios.
         </Text>
       </Card>
 
       <View style={{ marginTop: 32, alignItems: 'center' }}>
-        <Text style={{ fontSize: 12, color: '#fff', backgroundColor: '#4F46E5', padding: 12, borderRadius: 8, textAlign: 'center' }}>
+        <Text
+          style={{
+            fontSize: 12,
+            color: '#fff',
+            backgroundColor: '#4F46E5',
+            padding: 12,
+            borderRadius: 8,
+            textAlign: 'center',
+          }}
+        >
           Contacto: support@medaccess.com{'\n'}Tel: +1 800 123 4567
         </Text>
       </View>
@@ -115,7 +140,14 @@ export default function PaymentDetail() {
 
 function SectionTitle({ title }: { title: string }) {
   return (
-    <Text style={{ fontWeight: 'bold', fontStyle: 'italic', marginVertical: 12, fontSize: 16 }}>
+    <Text
+      style={{
+        fontWeight: 'bold',
+        fontStyle: 'italic',
+        marginVertical: 12,
+        fontSize: 16,
+      }}
+    >
       {title}
     </Text>
   );
@@ -153,13 +185,19 @@ function RowItem({
 }) {
   return (
     <View style={{ marginBottom: 8 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+      <View
+        style={{ flexDirection: 'row', justifyContent: 'space-between' }}
+      >
         <Text>{label}</Text>
         <Text>{value}</Text>
       </View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+      <View
+        style={{ flexDirection: 'row', justifyContent: 'space-between' }}
+      >
         <Text style={{ fontSize: 12, color: '#555' }}>Fecha: {date}</Text>
-        <Text style={{ fontSize: 12, color: '#555' }}>Concepto: {concept}</Text>
+        <Text style={{ fontSize: 12, color: '#555' }}>
+          Concepto: {concept}
+        </Text>
       </View>
     </View>
   );
