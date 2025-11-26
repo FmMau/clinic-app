@@ -2,10 +2,10 @@ import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { Stack } from 'expo-router';
 
-export default function RecordsLayout() {
+export default function PaymentsLayout() {
   const { loading: guardLoading, allowed } = useRoleGuard(['doctor']);
 
-  if (guardLoading) return <LoadingScreen message="Cargando historial..." />;
+  if (guardLoading) return <LoadingScreen message="Cargando pagos..." />;
   if (!allowed) return null;
 
   return (
@@ -22,9 +22,18 @@ export default function RecordsLayout() {
         },
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Pagos' }} />
-      <Stack.Screen name="[id]" options={{ title: '' }} />
-      <Stack.Screen name="create" options={{ title: '' }} />
+      <Stack.Screen
+        name="index"
+        options={{ title: 'Pagos' }}
+      />
+      <Stack.Screen
+        name="[id]"
+        options={{ title: 'Detalle del pago' }}
+      />
+      <Stack.Screen
+        name="create"
+        options={{ title: 'Crear pago' }}
+      />
     </Stack>
   );
 }

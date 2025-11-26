@@ -9,10 +9,12 @@ import {
   onSnapshot,
   orderBy,
   query,
+  Timestamp,
   where,
 } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,12 +23,29 @@ import {
   View,
 } from 'react-native';
 
+type Payment = {
+  id: string;
+  doctorId: string;
+  patientId?: string;
+  concept?: string;
+  amount?: number;
+  createdAt?: Timestamp | { seconds: number; nanoseconds?: number };
+  rating?: number;
+  comments?: string;
+  [key: string]: any;
+};
+
+type PaymentWithPatient = Payment & {
+  patientName: string;
+};
+
 export default function DoctorPaymentsIndex() {
   const { user } = useAuth();
   const router = useRouter();
-  const [payments, setPayments] = useState<any[]>([]);
-  const [filtered, setFiltered] = useState<any[]>([]);
+  const [payments, setPayments] = useState<PaymentWithPatient[]>([]);
+  const [filtered, setFiltered] = useState<PaymentWithPatient[]>([]);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -37,32 +56,48 @@ export default function DoctorPaymentsIndex() {
       orderBy('createdAt', 'desc')
     );
 
+    // Cache simple de pacientes en memoria
+    const patientCache: Record<string, string> = {};
+
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const data = await Promise.all(
-        snapshot.docs.map(async (docSnap) => {
-          const paymentData = docSnap.data();
-          const patientId = paymentData.patientId;
+      try {
+        const data: PaymentWithPatient[] = await Promise.all(
+          snapshot.docs.map(async (docSnap) => {
+            const paymentData = docSnap.data() as Payment;
+            const patientId = paymentData.patientId;
+            let patientName = 'Paciente desconocido';
 
-          let patientName = 'Paciente desconocido';
-
-          if (patientId) {
-            const patientDoc = await getDoc(doc(db, 'patients', patientId));
-            if (patientDoc.exists()) {
-              const patientData = patientDoc.data();
-              patientName = patientData?.name || patientName;
+            if (patientId) {
+              if (patientCache[patientId]) {
+                patientName = patientCache[patientId];
+              } else {
+                const patientDoc = await getDoc(doc(db, 'patients', patientId));
+                if (patientDoc.exists()) {
+                  const patientData = patientDoc.data();
+                  patientName = (patientData?.name as string) || patientName;
+                  patientCache[patientId] = patientName;
+                }
+              }
             }
-          }
 
-          return {
-            id: docSnap.id,
-            ...paymentData,
-            patientName,
-          };
-        })
-      );
+            // Exclude possible 'id' from Firestore document data to avoid duplicate property in object literal
+            const { id: _id, ...paymentRest } = paymentData as any;
 
-      setPayments(data);
-      setFiltered(data);
+            return {
+              ...paymentRest,
+              id: docSnap.id,
+              patientName,
+            };
+          })
+        );
+
+        setPayments(data);
+        setFiltered(data);
+      } catch (e) {
+        console.error('Error cargando pagos del doctor', e);
+      } finally {
+        setLoading(false);
+      }
     });
 
     return () => unsubscribe();
@@ -77,9 +112,18 @@ export default function DoctorPaymentsIndex() {
     );
   }, [search, payments]);
 
-  const formatDate = (value: any) => {
+  const formatDate = (value: Payment['createdAt']) => {
     if (!value) return '';
-    const date = new Date(value?.seconds * 1000);
+    let date: Date | null = null;
+
+    if (value instanceof Timestamp) {
+      date = value.toDate();
+    } else if (typeof value === 'object' && typeof value.seconds === 'number') {
+      date = new Date(value.seconds * 1000);
+    }
+
+    if (!date || isNaN(date.getTime())) return '';
+
     return date.toLocaleDateString('es-MX', {
       day: '2-digit',
       month: '2-digit',
@@ -87,11 +131,48 @@ export default function DoctorPaymentsIndex() {
     });
   };
 
+  const formatCurrency = (amount?: number) => {
+    if (amount == null) return '$0.00';
+    try {
+      return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+      }).format(amount);
+    } catch {
+      return `$${amount.toFixed(2)}`;
+    }
+  };
+
+  const totalIngresos = useMemo(
+    () =>
+      payments.reduce((acc, p) => acc + (typeof p.amount === 'number' ? p.amount : 0), 0),
+    [payments]
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#5A5CFF" />
+        <Text style={{ marginTop: 8, color: '#555' }}>Cargando pagos...</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: '#fff', padding: 20, paddingTop: 40 }}
     >
       <Section icon="card-outline" title="Pagos realizados">
+        {/* Resumen */}
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>Total de ingresos</Text>
+          <Text style={styles.summaryValue}>{formatCurrency(totalIngresos)}</Text>
+          <Text style={styles.summaryHint}>
+            {payments.length} {payments.length === 1 ? 'pago' : 'pagos'} registrados
+          </Text>
+        </View>
+
+        {/* Buscador */}
         <View style={styles.searchBox}>
           <Ionicons
             name="search-outline"
@@ -107,16 +188,25 @@ export default function DoctorPaymentsIndex() {
           />
         </View>
 
-        {filtered.map((item) => (
-          <Card
-            key={item.id}
-            id={item.id}
-            title={item.patientName || 'Paciente desconocido'}
-            subtitle={`Fecha: ${formatDate(item.createdAt)}\n${item.concept}`}
-            badge={`$${item.amount}`}
-            onPress={() => router.push(`/(tabs)/doctor/payments/${item.id}`)}
-          />
-        ))}
+        {filtered.length === 0 ? (
+          <Text style={{ color: '#999', textAlign: 'center', marginTop: 12 }}>
+            {payments.length === 0
+              ? 'Aún no tienes pagos registrados.'
+              : 'No se encontraron pagos con ese paciente.'}
+          </Text>
+        ) : (
+          filtered.map((item) => (
+            <Card
+              key={item.id}
+              title={item.patientName || 'Paciente desconocido'}
+              subtitle={`Fecha: ${formatDate(item.createdAt)}\n${
+                item.concept || 'Sin concepto'
+              }`}
+              badge={formatCurrency(item.amount)}
+              onPress={() => router.push(`/(tabs)/doctor/payments/${item.id}`)}
+            />
+          ))
+        )}
       </Section>
 
       <Section icon="chatbubble-ellipses-outline" title="Valoraciones de pacientes">
@@ -127,6 +217,13 @@ export default function DoctorPaymentsIndex() {
           .filter((p) => p.rating && p.comments)
           .map((p) => (
             <View key={p.id + '-review'} style={styles.commentCard}>
+              {/* Rating simple con estrellas si quieres embellecer */}
+              {typeof p.rating === 'number' && (
+                <Text style={{ marginBottom: 4, color: '#F59E0B' }}>
+                  {'★'.repeat(Math.round(p.rating)) +
+                    '☆'.repeat(5 - Math.round(p.rating))}
+                </Text>
+              )}
               <Text style={{ fontStyle: 'italic', marginBottom: 8 }}>
                 "{p.comments}"
               </Text>
@@ -156,7 +253,12 @@ function Section({
       <View
         style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}
       >
-        <Ionicons name={icon as any} size={20} color="#5A5CFF" style={{ marginRight: 8 }} />
+        <Ionicons
+          name={icon as any}
+          size={20}
+          color="#5A5CFF"
+          style={{ marginRight: 8 }}
+        />
         <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{title}</Text>
       </View>
       {children}
@@ -165,13 +267,11 @@ function Section({
 }
 
 function Card({
-  id,
   title,
   subtitle,
   badge,
   onPress,
 }: {
-  id: string;
   title: string;
   subtitle: string;
   badge?: string;
@@ -189,6 +289,13 @@ function Card({
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    padding: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
   searchBox: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -222,5 +329,26 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+  },
+  summaryCard: {
+    backgroundColor: '#F3F4FF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: '#4B5563',
+  },
+  summaryValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#4F46E5',
+    marginTop: 4,
+  },
+  summaryHint: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
   },
 });
