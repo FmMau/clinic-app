@@ -6,19 +6,33 @@ import { useRouter } from 'expo-router';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
+type Doctor = {
+  name?: string;
+  email?: string;
+  specialty?: string;
+  photoURL?: string;
+  location?: {
+    latitude?: number;
+    longitude?: number;
+  };
+  phone?: string;
+  license?: string; // cédula, si la manejas así
+  [key: string]: any;
+};
+
 export default function DoctorProfileView() {
   const { loading: guardLoading, allowed } = useRoleGuard(['doctor']);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<Doctor | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -26,61 +40,101 @@ export default function DoctorProfileView() {
     const uid = auth.currentUser?.uid;
     if (!uid || !allowed) return;
 
-    const unsubscribe = onSnapshot(doc(db, 'doctors', uid), (snap) => {
-      if (snap.exists()) setData(snap.data());
-      setLoading(false);
-    });
+    const ref = doc(db, 'doctors', uid);
+
+    const unsubscribe = onSnapshot(
+      ref,
+      (snap) => {
+        if (snap.exists()) {
+          setData(snap.data() as Doctor);
+        } else {
+          setData(null);
+        }
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error escuchando perfil de doctor:', error);
+        setData(null);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, [allowed]);
 
-  if (guardLoading || loading) return <LoadingScreen message="Cargando perfil..." />;
+  if (guardLoading || loading) {
+    return <LoadingScreen message="Cargando perfil..." />;
+  }
+
   if (!allowed) return null;
-  if (!data) return <Text style={styles.status}>Perfil no encontrado</Text>;
+
+  if (!data) {
+    return (
+      <View style={styles.centered}>
+        <Ionicons
+          name="alert-circle-outline"
+          size={32}
+          color="#9CA3AF"
+          style={{ marginBottom: 8 }}
+        />
+        <Text style={styles.status}>Perfil no encontrado</Text>
+      </View>
+    );
+  }
+
+  const avatarUri =
+    data.photoURL ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      data.name || 'Doctor'
+    )}`;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 100 }}
+    >
       <View style={styles.header}>
         <Image
-          source={{
-            uri: data.photoURL || `https://ui-avatars.com/api/?name=${data.name}`,
-          }}
+          source={{ uri: avatarUri }}
           style={styles.avatar}
         />
-        <Text style={styles.name}>{data.name}</Text>
+        <Text style={styles.name}>{data.name || 'Sin nombre'}</Text>
         <Text style={styles.role}>Doctor(a)</Text>
       </View>
 
       {renderField('Nombre completo', data.name)}
       {renderField('Correo electrónico', data.email)}
       {renderField('Especialidad', data.specialty)}
-      {data.location?.latitude && data.location?.longitude ? (
+      {data.phone && renderField('Teléfono', data.phone)}
+      {data.license && renderField('Cédula profesional', data.license)}
+
+      {data.location?.latitude != null && data.location?.longitude != null ? (
         <View style={styles.mapCard}>
-        <Text style={styles.label}>Ubicación</Text>
-        <MapView
-          style={styles.map}
-          region={{
-            latitude: data.location.latitude,
-            longitude: data.location.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }}
-          scrollEnabled={false}
-          zoomEnabled={false}
-        >
-          <Marker
-            coordinate={{
+          <Text style={styles.label}>Ubicación</Text>
+          <MapView
+            style={styles.map}
+            region={{
               latitude: data.location.latitude,
               longitude: data.location.longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
             }}
-            title={data.name}
-            description="Ubicación del doctor"
-          />
-        </MapView>
-      </View>
-) : (
-  renderField('Ubicación', 'No especificada')
-)}
+            scrollEnabled={false}
+            zoomEnabled={false}
+          >
+            <Marker
+              coordinate={{
+                latitude: data.location.latitude,
+                longitude: data.location.longitude,
+              }}
+              title={data.name || 'Doctor'}
+              description="Ubicación del doctor"
+            />
+          </MapView>
+        </View>
+      ) : (
+        renderField('Ubicación', 'No especificada')
+      )}
 
       <View style={styles.buttonRow}>
         <TouchableOpacity
@@ -88,7 +142,12 @@ export default function DoctorProfileView() {
           onPress={() => router.push('/(tabs)/doctor/profile/edit')}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name="create-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+            <Ionicons
+              name="create-outline"
+              size={20}
+              color="#fff"
+              style={{ marginRight: 8 }}
+            />
             <Text style={styles.editButtonText}>Editar</Text>
           </View>
         </TouchableOpacity>
@@ -97,7 +156,7 @@ export default function DoctorProfileView() {
   );
 }
 
-function renderField(label: string, value: string) {
+function renderField(label: string, value?: string | null) {
   return (
     <View style={styles.card}>
       <Text style={styles.label}>{label}</Text>
@@ -106,40 +165,24 @@ function renderField(label: string, value: string) {
   );
 }
 
-function formatDate(value: any) {
-  try {
-    let date;
-    if (typeof value === 'string') date = new Date(value);
-    else if (value?.seconds) date = new Date(value.seconds * 1000);
-    else return 'Desconocida';
-
-    return date.toLocaleDateString('es-MX', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  } catch {
-    return 'Desconocida';
-  }
-}
-
-function formatLocation(value: any) {
-  if (!value || typeof value !== 'object') return 'No especificada';
-  const { latitude, longitude } = value;
-  if (latitude == null || longitude == null) return 'No especificada';
-  return `Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`;
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 24,
     backgroundColor: '#f9f9f9',
   },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#fff',
+  },
   status: {
-    padding: 20,
+    paddingTop: 4,
     fontSize: 16,
     textAlign: 'center',
+    color: '#374151',
   },
   header: {
     alignItems: 'center',
@@ -183,6 +226,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
     elevation: 2,
   },
   label: {
@@ -218,6 +262,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
     elevation: 2,
   },
   map: {
