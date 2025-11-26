@@ -22,8 +22,20 @@ export default function RecordsLayout() {
         },
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Historiales' }} />
-      <Stack.Screen name="[id]" options={{ title: '' }} />
+      {/* Pantalla principal (lista de historiales) */}
+      <Stack.Screen
+        name="index"
+        options={{ title: 'Historiales' }}
+      />
+
+      {/* Detalle del historial de un paciente */}
+      <Stack.Screen
+        name="[id]"
+        options={({ route }) => ({
+          // Si mandas `name` como param, el título cambia dinámicamente.
+          title: (route.params as { name?: string })?.name || 'Historial',
+        })}
+      />
     </Stack>
   );
 }

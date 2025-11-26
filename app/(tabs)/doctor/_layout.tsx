@@ -26,7 +26,7 @@ export default function DoctorTabsLayout() {
         tabBarActiveTintColor: isDark ? '#E0E7FF' : '#FFFFFF',
         tabBarInactiveTintColor: isDark ? '#9CA3AF' : '#C7C7FF',
         tabBarStyle: {
-          backgroundColor: isDark ? '#1F2937' : '#4F46E5',
+          backgroundColor: isDark ? '#4F46E5' : '#4F46E5',
           borderTopWidth: 0,
           height: 70,
           paddingBottom: Platform.OS === 'ios' ? 20 : 10,
