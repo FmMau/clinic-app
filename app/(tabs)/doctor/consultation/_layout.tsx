@@ -2,10 +2,10 @@ import LoadingScreen from '@/components/ui/LoadingScreen';
 import { useRoleGuard } from '@/hooks/useRoleGuard';
 import { Stack } from 'expo-router';
 
-export default function RecordsLayout() {
+export default function ConsultationLayout() {
   const { loading: guardLoading, allowed } = useRoleGuard(['doctor']);
 
-  if (guardLoading) return <LoadingScreen message="Cargando historial..." />;
+  if (guardLoading) return <LoadingScreen message="Cargando módulo de diagnósticos..." />;
   if (!allowed) return null;
 
   return (
@@ -22,8 +22,14 @@ export default function RecordsLayout() {
         },
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Diagnosticos' }} />
-      <Stack.Screen name="[id]" options={{ title: '' }} />
+      <Stack.Screen
+        name="index"
+        options={{ title: 'Seleccionar paciente' }}
+      />
+      <Stack.Screen
+        name="[id]"
+        options={{ title: 'Registrar diagnóstico' }}
+      />
     </Stack>
   );
 }
