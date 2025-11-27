@@ -7,25 +7,20 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+//Es menos seguro, pero simple y funciona para el proyecto
+const stripe = new Stripe(
+  'sk_test_51RPFfMKDCb8gyhPIY6HGTh6InhlZh3WG4B7XfF1IU4JlI2M5bczEFq3MOVn0cVlHiCGPcECKsijk98dPkMPt9xFk00XpItuJgZ',
+  {
+    // apiVersion: '2025-08-27.basil', // opcional
+  }
+);
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
+const webhookSecret = 'whsec_JP0lR3zXmBcLnCj8QJmmKq7R4JEHoO22';
 
 interface CheckoutSessionData {
   amount: number;
   paymentId: string;
   patientId: string;
-}
-
-// Helper opcional para crear Stripe
-function getStripe() {
-  const apiKey = process.env.STRIPE_SECRET_KEY;
-  if (!apiKey) {
-    throw new Error('STRIPE_SECRET_KEY no está definida en las variables de entorno');
-  }
-
-  return new Stripe(apiKey, {
-    // apiVersion: '2025-08-27.basil', // si quieres fijar versión
-  });
 }
 
 export const createCheckoutSession = onCall<CheckoutSessionData>(async (request) => {
@@ -37,8 +32,6 @@ export const createCheckoutSession = onCall<CheckoutSessionData>(async (request)
   }
 
   try {
-    const stripe = getStripe(); // 👈 AHORA SÍ AQUÍ
-
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -54,10 +47,7 @@ export const createCheckoutSession = onCall<CheckoutSessionData>(async (request)
       mode: 'payment',
       success_url: `https://medaccess.com/stripe-success?paymentId=${paymentId}`,
       cancel_url: `https://medaccess.com/stripe-cancel`,
-      metadata: {
-        paymentId,
-        patientId,
-      },
+      metadata: { paymentId, patientId },
     });
 
     if (!session.url) {
@@ -76,9 +66,16 @@ export const createCheckoutSession = onCall<CheckoutSessionData>(async (request)
   }
 });
 
-// --- Webhook ---
-
+// --- webhook igual que ya lo tenías, pero usando `stripe` directamente ---
 const app = express();
+
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      (req as any).rawBody = buf;
+    },
+  })
+);
 
 app.post('/stripe-webhook', async (req, res) => {
   console.log('🚀 Webhook recibido');
@@ -94,8 +91,6 @@ app.post('/stripe-webhook', async (req, res) => {
   let event: Stripe.Event;
 
   try {
-    const stripe = getStripe();
-
     event = stripe.webhooks.constructEvent(raw, sig as string, webhookSecret);
     console.log(`✅ Tipo de evento: ${event.type}`);
   } catch (err: any) {
@@ -126,8 +121,6 @@ app.post('/stripe-webhook', async (req, res) => {
 
       await ref.update({ status: 'pagado' });
       console.log(`✅ Estado actualizado a "pagado" para ${paymentId}`);
-
-      // ✅ éxito cuando SÍ procesamos el evento
       return res.status(200).json({ received: true });
     } catch (err) {
       console.error('❌ Error al actualizar Firestore:', err);
@@ -135,9 +128,7 @@ app.post('/stripe-webhook', async (req, res) => {
     }
   }
 
-  // ✅ Para cualquier otro tipo de evento, respondemos 200 igual
   return res.status(200).json({ received: true });
 });
-
 
 export const stripeWebhook = onRequest({ cors: true }, app);
