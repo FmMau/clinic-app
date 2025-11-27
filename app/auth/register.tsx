@@ -17,6 +17,9 @@ import {
   View,
 } from 'react-native';
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const phoneRegex = /^\d{10}$/;
+
 export default function RegisterScreen() {
   const router = useRouter();
   const [form, setForm] = useState({
@@ -40,72 +43,81 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const phoneRegex = /^\d{10}$/;
+    const name = form.name.trim();
+    const lastname = form.lastname.trim();
+    const email = form.email.trim();
+    const password = form.password;
+    const confirm = form.confirm;
+    const phone = form.phone.trim();
+    const birthdate = form.birthdate;
+    const curp = form.curp.trim().toUpperCase();
+    const address = form.address.trim();
+    const gender = form.gender;
+    const allergies = form.allergies.trim();
 
-    if (!form.name || form.name.trim().length < 2) {
+    if (!name || name.length < 2) {
       Alert.alert('Error', 'Nombre es requerido');
       return;
     }
-    if (!form.lastname || form.lastname.trim().length < 2) {
+    if (!lastname || lastname.length < 2) {
       Alert.alert('Error', 'Apellido es requerido');
       return;
     }
-    if (!form.email || !emailRegex.test(form.email.trim())) {
+    if (!email || !emailRegex.test(email)) {
       Alert.alert('Error', 'Correo inválido');
       return;
     }
-    if (!form.password || form.password.length < 6) {
+    if (!password || password.length < 6) {
       Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
       return;
     }
-    if (form.password !== form.confirm) {
+    if (password !== confirm) {
       Alert.alert('Error', 'Las contraseñas no coinciden');
       return;
     }
-    if (!form.phone || !phoneRegex.test(form.phone)) {
+    if (!phone || !phoneRegex.test(phone)) {
       Alert.alert('Error', 'Teléfono inválido (10 dígitos)');
       return;
     }
-    if (!form.birthdate || new Date(form.birthdate) > new Date()) {
+    if (!birthdate || new Date(birthdate) > new Date()) {
       Alert.alert('Error', 'Selecciona una fecha de nacimiento válida');
       return;
     }
-    if (form.curp && form.curp.length !== 18) {
+    if (curp && curp.length !== 18) {
       Alert.alert('Error', 'La CURP debe tener 18 caracteres');
       return;
     }
-    if (!form.address || form.address.length < 5) {
+    if (!address || address.length < 5) {
       Alert.alert('Error', 'Dirección es requerida');
       return;
     }
-    if (!form.gender) {
+    if (!gender) {
       Alert.alert('Error', 'Selecciona un sexo');
       return;
     }
 
     setLoading(true);
     try {
-      const userCred = await createUserWithEmailAndPassword(auth, form.email.trim(), form.password);
+      const userCred = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCred.user.uid;
 
       await setDoc(doc(db, 'patients', uid), {
-        name: form.name.trim(),
-        lastname: form.lastname.trim(),
-        email: form.email.trim(),
+        name,
+        lastname,
+        email,
         role: 'paciente',
-        phone: form.phone.trim(),
-        birthdate: form.birthdate,
-        curp: form.curp.trim(),
-        address: form.address.trim(),
-        gender: form.gender,
-        allergies: form.allergies.trim(),
+        phone,
+        birthdate,
+        curp,
+        address,
+        gender,
+        allergies,
         createdAt: new Date(),
       });
 
       router.replace('/');
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', error.message || 'No se pudo completar el registro');
     } finally {
       setLoading(false);
     }
@@ -122,23 +134,42 @@ export default function RegisterScreen() {
           <Text style={{ fontSize: 22, fontWeight: 'bold', marginTop: 8 }}>Registro</Text>
         </View>
 
-        {/* Campos de texto */}
         {[
-          { label: 'Nombre', key: 'name' },
-          { label: 'Apellido', key: 'lastname' },
-          { label: 'Correo', key: 'email', keyboardType: 'email-address' },
-          { label: 'Contraseña', key: 'password', secure: true },
-          { label: 'Confirmar contraseña', key: 'confirm', secure: true },
-          { label: 'Teléfono', key: 'phone', keyboardType: 'phone-pad' },
-          { label: 'CURP', key: 'curp' },
-          { label: 'Dirección', key: 'address' },
-        ].map(({ label, key, keyboardType, secure }) => (
+          { label: 'Nombre', key: 'name', placeholder: 'Ingrese su nombre' },
+          { label: 'Apellido', key: 'lastname', placeholder: 'Ingrese su apellido' },
+          {
+            label: 'Correo',
+            key: 'email',
+            placeholder: 'Ingrese su correo',
+            keyboardType: 'email-address',
+          },
+          {
+            label: 'Contraseña',
+            key: 'password',
+            placeholder: 'Ingrese su contraseña',
+            secure: true,
+          },
+          {
+            label: 'Confirmar contraseña',
+            key: 'confirm',
+            placeholder: 'Ingrese su confirmar contraseña',
+            secure: true,
+          },
+          {
+            label: 'Teléfono',
+            key: 'phone',
+            placeholder: 'Ingrese su teléfono',
+            keyboardType: 'phone-pad',
+          },
+          { label: 'CURP', key: 'curp', placeholder: 'Ingrese su curp' },
+          { label: 'Dirección', key: 'address', placeholder: 'Ingrese su dirección' },
+        ].map(({ label, key, keyboardType, secure, placeholder }) => (
           <View key={key} style={{ marginBottom: 12 }}>
             <Text style={{ marginBottom: 4 }}>{label}</Text>
             <TextInput
               value={form[key as keyof typeof form]}
               onChangeText={(value) => handleChange(key as keyof typeof form, value)}
-              placeholder={`Ingrese su ${label.toLowerCase()}`}
+              placeholder={placeholder}
               placeholderTextColor="#999"
               secureTextEntry={secure}
               keyboardType={keyboardType as any}
@@ -210,7 +241,14 @@ export default function RegisterScreen() {
                 }}
               >
                 {form.gender === g && (
-                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#5A5CFF' }} />
+                  <View
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      backgroundColor: '#5A5CFF',
+                    }}
+                  />
                 )}
               </View>
               <Text>{g}</Text>

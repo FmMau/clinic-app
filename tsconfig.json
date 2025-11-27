@@ -5,7 +5,7 @@
     "paths": {
       "@/*": ["./*"]
     },
-    "types": ["victory", "react-native-svg"]
+    "types": ["victory", "react-native-svg", "jest"]
   },
   "include": [
     "**/*.ts",

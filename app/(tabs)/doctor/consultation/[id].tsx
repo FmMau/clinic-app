@@ -1,4 +1,3 @@
-import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -19,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { auth, db } from '../../../../lib/firebase/firebaseConfig';
 
 type Patient = {
   name?: string;
@@ -80,7 +80,7 @@ export default function ConsultationDetail() {
   }, [patientId]);
 
   const handleSave = async () => {
-    const doctorId = auth.currentUser?.uid;
+    const doctorId = auth?.currentUser?.uid;
 
     if (!patientId || !doctorId) {
       Alert.alert(

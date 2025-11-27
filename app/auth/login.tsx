@@ -17,35 +17,43 @@ import {
   View,
 } from 'react-native';
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const isValidEmail = (value: string) => emailRegex.test(value.trim());
+
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
   const handleLogin = async () => {
-    if (!email.trim() || !emailRegex.test(email.trim())) {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
       Alert.alert('Error', 'Ingresa un correo válido');
       return;
     }
 
-    if (!password || password.trim().length < 6) {
+    if (!trimmedPassword || trimmedPassword.length < 6) {
       Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
     setLoading(true);
     try {
-      await signIn(email.trim(), password.trim());
+      await signIn(trimmedEmail, trimmedPassword);
       router.replace('/');
     } catch (error: any) {
       let message = 'Error al iniciar sesión';
 
       if (error.code === 'auth/user-not-found') {
         message = 'Usuario no registrado';
-      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-login-credentials') {
+      } else if (
+        error.code === 'auth/wrong-password' ||
+        error.code === 'auth/invalid-login-credentials'
+      ) {
         message = 'Correo o contraseña incorrectos';
       } else if (error.code === 'auth/invalid-email') {
         message = 'Correo inválido';
@@ -56,6 +64,38 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
+
+  const handleResetPassword = () => {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      Alert.alert('Error', 'Por favor, ingresa tu correo primero');
+      return;
+    }
+
+    resetPassword(trimmedEmail)
+      .then(() => {
+        Alert.alert(
+          'Listo',
+          'Se ha enviado un correo para restablecer tu contraseña'
+        );
+      })
+      .catch((error: unknown) => {
+        const code = (error as { code?: string }).code;
+        let message = 'No se pudo enviar el correo';
+
+        if (code === 'auth/invalid-email') {
+          message = 'Correo inválido';
+        } else if (code === 'auth/user-not-found') {
+          message = 'No existe una cuenta con ese correo';
+        }
+
+        Alert.alert('Error', message);
+      });
+  };
+
+  const trimmedEmailForDisabled = email.trim();
+  const resetDisabled = !trimmedEmailForDisabled || !isValidEmail(trimmedEmailForDisabled);
 
   return (
     <KeyboardAvoidingView
@@ -83,11 +123,19 @@ export default function LoginScreen() {
             elevation: 4,
           }}
         >
-          <Text style={{ fontSize: 22, fontWeight: 'bold', textAlign: 'center', marginBottom: 24 }}>
+          <Text
+            style={{
+              fontSize: 22,
+              fontWeight: 'bold',
+              textAlign: 'center',
+              marginBottom: 24,
+            }}
+          >
             Iniciar sesión
           </Text>
 
           <TextInput
+            testID="email-input"
             value={email}
             onChangeText={setEmail}
             placeholder="Correo electrónico"
@@ -107,6 +155,7 @@ export default function LoginScreen() {
           />
 
           <TextInput
+            testID="password-input"
             value={password}
             onChangeText={setPassword}
             placeholder="Contraseña"
@@ -125,33 +174,13 @@ export default function LoginScreen() {
           />
 
           <TouchableOpacity
-            disabled={!email || !emailRegex.test(email)}
-            onPress={() => {
-              if (!email) {
-                Alert.alert('Error', 'Por favor, ingresa tu correo primero');
-                return;
-              }
-
-              resetPassword(email.trim())
-                .then(() => {
-                  Alert.alert('Listo', 'Se ha enviado un correo para restablecer tu contraseña');
-                })
-                .catch((error: unknown) => {
-                  let message = 'No se pudo enviar el correo';
-
-                  if ((error as { code: string }).code === 'auth/invalid-email') {
-                    message = 'Correo inválido';
-                  } else if ((error as { code: string }).code === 'auth/user-not-found') {
-                    message = 'No existe una cuenta con ese correo';
-                  }
-
-                  Alert.alert('Error', message);
-                });
-            }}
+            testID="forgot-password-button"
+            disabled={resetDisabled}
+            onPress={handleResetPassword}
           >
             <Text
               style={{
-                color: '#5A5CFF',
+                color: resetDisabled ? '#B0B0B0' : '#5A5CFF',
                 textAlign: 'right',
                 marginBottom: 16,
                 fontSize: 13,
@@ -162,6 +191,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <Pressable
+            testID="login-button"
             onPress={handleLogin}
             disabled={loading}
             style={{
@@ -179,7 +209,10 @@ export default function LoginScreen() {
             </Text>
           </Pressable>
 
-          <TouchableOpacity onPress={() => router.push('/auth/register')}>
+          <TouchableOpacity
+            testID="go-register-button"
+            onPress={() => router.push('/auth/register')}
+          >
             <Text
               style={{
                 marginTop: 20,

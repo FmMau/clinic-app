@@ -1,13 +1,19 @@
+// lib/firebase/useRoleGuard.ts (o donde lo tengas)
 import { useUserRole } from '@/lib/firebase/useUserRole';
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 export function useRoleGuard(allowedRoles: string[]) {
   const router = useRouter();
   const { role, loading } = useUserRole();
 
+  const isAllowed = useMemo(
+    () => allowedRoles.includes(role ?? ''),
+    [allowedRoles, role]
+  );
+
   useEffect(() => {
-    if (!loading && role && !allowedRoles.includes(role)) {
+    if (!loading && role && !isAllowed) {
       switch (role) {
         case 'paciente':
           router.replace('/(tabs)/patient');
@@ -22,7 +28,7 @@ export function useRoleGuard(allowedRoles: string[]) {
           router.replace('/auth/login');
       }
     }
-  }, [role, loading]);
+  }, [role, loading, isAllowed, router]);
 
-  return { loading, allowed: allowedRoles.includes(role ?? '') };
+  return { loading, allowed: isAllowed };
 }

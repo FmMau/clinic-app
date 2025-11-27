@@ -1,62 +1,48 @@
 // jest.setup.js
 import '@testing-library/jest-native/extend-expect';
 
-// Timers fake para manejar setTimeout, etc.
-jest.useFakeTimers();
+// ❌ Quita esto si lo tienes, para evitar broncas de timers
+// jest.useFakeTimers();
 
-// Mock de react-native-reanimated (recomendado por ellos)
+// Mock recomendado para react-native-reanimated (documentación oficial)
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
 
-// Mock de expo-router (para que Tabs, Stack, useRouter, etc. no truene)
-jest.mock('expo-router', () => {
+// 🔹 Mock de @expo/vector-icons para evitar el warning de Icon / act(...)
+jest.mock('@expo/vector-icons', () => {
   const React = require('react');
-  const View = require('react-native').View;
+  const { Text } = require('react-native');
+
+  // Devolvemos componentes tontos que solo renderizan un <Text />
+  const MockIcon = ({ name }) => <Text>{name}</Text>;
 
   return {
-    // Navegador
-    useRouter: () => ({
-      push: jest.fn(),
-      replace: jest.fn(),
-      back: jest.fn(),
-    }),
-    useLocalSearchParams: () => ({}),
-    useSegments: () => [],
-    Stack: ({ children }) => <View>{children}</View>,
-    Tabs: ({ children }) => <View>{children}</View>,
-    Slot: ({ children }) => <View>{children}</View>,
-    Link: ({ children }) => <View>{children}</View>,
+    // Solo necesitas lo que usas en tu código
+    FontAwesome6: MockIcon,
   };
 });
+jest.mock('@react-native-community/datetimepicker', () => {
+  const React = require('react');
 
-// Mock de AsyncStorage si lo usas
-jest.mock('@react-native-async-storage/async-storage', () =>
-  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
-);
+  return ({ onChange, value }) => {
+    React.useEffect(() => {
+      if (onChange) {
+        const date = value || new Date();
+        onChange({}, date);
+      }
+    }, [onChange, value]);
 
-// Mock de tu firebaseConfig central
-jest.mock('@/lib/firebase/firebaseConfig', () => {
-  const authMock = {
-    currentUser: null,
-    signInWithEmailAndPassword: jest.fn(),
-    createUserWithEmailAndPassword: jest.fn(),
-    signOut: jest.fn(),
-    onAuthStateChanged: jest.fn(),
-    updateProfile: jest.fn(),
-    updatePassword: jest.fn(),
-    sendPasswordResetEmail: jest.fn(),
+    return null; // no renderiza nada visible en los tests
   };
+});
+// jest.setup.js (fragmento relevante)
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
 
-  const dbMock = {
-    // puedes dejarlo vacío y mockear por test si usas getDoc, collection, etc.
-  };
-
-  const storageMock = {
-    // mock de storage para imágenes, etc.
-  };
+  const MockIcon = ({ name }) => <Text>{name}</Text>;
 
   return {
-    auth: authMock,
-    db: dbMock,
-    storage: storageMock,
+    FontAwesome6: MockIcon,
+    Ionicons: MockIcon,
   };
 });
