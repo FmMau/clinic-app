@@ -8,7 +8,7 @@ if (!admin.apps.length) {
 }
 
 const stripe = new Stripe('sk_test_51RPFfMKDCb8gyhPIY6HGTh6InhlZh3WG4B7XfF1IU4JlI2M5bczEFq3MOVn0cVlHiCGPcECKsijk98dPkMPt9xFk00XpItuJgZ', {
-  apiVersion: '2025-04-30.basil',
+  //apiVersion: '2025-04-30.basil',
 });
 
 const webhookSecret = 'whsec_JP0lR3zXmBcLnCj8QJmmKq7R4JEHoO22';
