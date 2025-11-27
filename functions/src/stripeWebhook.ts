@@ -1,17 +1,14 @@
 import express from 'express';
 import * as admin from 'firebase-admin';
-import { onCall, onRequest } from 'firebase-functions/v2/https';
+import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import Stripe from 'stripe';
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-const stripe = new Stripe('sk_test_51RPFfMKDCb8gyhPIY6HGTh6InhlZh3WG4B7XfF1IU4JlI2M5bczEFq3MOVn0cVlHiCGPcECKsijk98dPkMPt9xFk00XpItuJgZ', {
-  //apiVersion: '2025-04-30.basil',
-});
 
-const webhookSecret = 'whsec_JP0lR3zXmBcLnCj8QJmmKq7R4JEHoO22';
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
 
 interface CheckoutSessionData {
   amount: number;
@@ -19,25 +16,36 @@ interface CheckoutSessionData {
   patientId: string;
 }
 
+// Helper opcional para crear Stripe
+function getStripe() {
+  const apiKey = process.env.STRIPE_SECRET_KEY;
+  if (!apiKey) {
+    throw new Error('STRIPE_SECRET_KEY no está definida en las variables de entorno');
+  }
+
+  return new Stripe(apiKey, {
+    // apiVersion: '2025-08-27.basil', // si quieres fijar versión
+  });
+}
+
 export const createCheckoutSession = onCall<CheckoutSessionData>(async (request) => {
-  const { data } = request;
-  const { amount, paymentId, patientId } = data;
+  const { amount, paymentId, patientId } = request.data || {};
 
   if (!amount || !paymentId || !patientId) {
     console.error('Datos faltantes:', { amount, paymentId, patientId });
-    throw new Error('Faltan campos requeridos');
+    throw new HttpsError('invalid-argument', 'Faltan campos requeridos');
   }
 
   try {
+    const stripe = getStripe(); // 👈 AHORA SÍ AQUÍ
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
             currency: 'mxn',
-            product_data: {
-              name: 'Pago de consulta',
-            },
+            product_data: { name: 'Pago de consulta' },
             unit_amount: amount * 100,
           },
           quantity: 1,
@@ -52,22 +60,25 @@ export const createCheckoutSession = onCall<CheckoutSessionData>(async (request)
       },
     });
 
+    if (!session.url) {
+      console.error('Stripe no regresó URL de checkout:', session);
+      throw new HttpsError('internal', 'Stripe no regresó URL de checkout');
+    }
+
     return { url: session.url };
   } catch (error: any) {
-    console.error('Error al crear sesión de pago:', error.message, error.stack);
-    throw new Error(error.message || 'Error desconocido');
+    console.error('Error al crear sesión de pago:', error);
+    throw new HttpsError(
+      'internal',
+      error?.message || 'Error al crear sesión de pago',
+      error
+    );
   }
 });
 
-const app = express();
+// --- Webhook ---
 
-app.use(
-  express.json({
-    verify: (req, res, buf) => {
-      (req as any).rawBody = buf;
-    },
-  })
-);
+const app = express();
 
 app.post('/stripe-webhook', async (req, res) => {
   console.log('🚀 Webhook recibido');
@@ -83,7 +94,9 @@ app.post('/stripe-webhook', async (req, res) => {
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(raw, sig, webhookSecret);
+    const stripe = getStripe();
+
+    event = stripe.webhooks.constructEvent(raw, sig as string, webhookSecret);
     console.log(`✅ Tipo de evento: ${event.type}`);
   } catch (err: any) {
     console.error('❌ Error en constructEvent:', err.message);
@@ -112,14 +125,19 @@ app.post('/stripe-webhook', async (req, res) => {
       }
 
       await ref.update({ status: 'pagado' });
-      console.log(`✅ Estado actualizado a \"pagado\" para ${paymentId}`);
+      console.log(`✅ Estado actualizado a "pagado" para ${paymentId}`);
+
+      // ✅ éxito cuando SÍ procesamos el evento
+      return res.status(200).json({ received: true });
     } catch (err) {
       console.error('❌ Error al actualizar Firestore:', err);
       return res.status(500).send('Error al actualizar Firestore');
     }
   }
 
+  // ✅ Para cualquier otro tipo de evento, respondemos 200 igual
   return res.status(200).json({ received: true });
 });
+
 
 export const stripeWebhook = onRequest({ cors: true }, app);
