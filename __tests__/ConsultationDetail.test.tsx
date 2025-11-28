@@ -17,7 +17,6 @@ const mockGetDoc = jest.fn();
 
 jest.mock('firebase/firestore', () => ({
   getDoc: (...args: unknown[]) => mockGetDoc(...args),
-  // 👇 añadimos doc para que no truene
   doc: jest.fn((...args: unknown[]) => ({ _path: args })),
 }));
 

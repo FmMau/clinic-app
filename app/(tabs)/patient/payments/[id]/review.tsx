@@ -15,19 +15,17 @@ import {
 
 export default function PaymentAndReview() {
   const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
-  const { id } = useLocalSearchParams(); // paymentId
+  const { id } = useLocalSearchParams();
   const paymentId = Array.isArray(id) ? id[0] : id;
 
   const router = useRouter();
 
-  const [method, setMethod] = useState<string | null>(null);
   const [rating, setRating] = useState(4);
   const [comments, setComments] = useState('');
   const [amount, setAmount] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(true);
 
-  // Cargar datos del pago
   useEffect(() => {
     const fetchPayment = async () => {
       if (!allowed || !paymentId) {
@@ -63,20 +61,13 @@ export default function PaymentAndReview() {
     fetchPayment();
   }, [allowed, paymentId]);
 
-  // Enviar valoración
   const handleSubmit = async () => {
     try {
       if (!paymentId) return;
 
-      if (!method) {
-        Alert.alert('Error', 'Selecciona un método de pago.');
-        return;
-      }
-
       const ref = doc(db, 'payments', paymentId);
 
       await updateDoc(ref, {
-        method,
         rating,
         comments: comments.trim(),
       });
@@ -90,7 +81,11 @@ export default function PaymentAndReview() {
   };
 
   const renderStar = (index: number) => (
-    <TouchableOpacity key={index} onPress={() => setRating(index + 1)}>
+    <TouchableOpacity
+      key={index}
+      testID={`star-${index}`}
+      onPress={() => setRating(index + 1)}
+    >
       <Ionicons
         name={index < rating ? 'star' : 'star-outline'}
         size={32}
@@ -99,7 +94,6 @@ export default function PaymentAndReview() {
     </TouchableOpacity>
   );
 
-  // Loading: permisos o cargo del pago
   if (guardLoading || loading || amount === null) {
     return <LoadingScreen message="Cargando pago y valoración..." />;
   }
@@ -112,7 +106,6 @@ export default function PaymentAndReview() {
         Pagos y Valoraciones
       </Text>
 
-      {/* Monto pagado */}
       <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>Total pagado</Text>
       <View
         style={{
@@ -125,7 +118,6 @@ export default function PaymentAndReview() {
         <Text style={{ fontSize: 18 }}>${amount.toFixed(2)}</Text>
       </View>
 
-      {/* Estrellas */}
       <Text style={{ fontWeight: 'bold', marginVertical: 16 }}>
         Calificación del médico
       </Text>
@@ -133,42 +125,6 @@ export default function PaymentAndReview() {
         {[...Array(5)].map((_, i) => renderStar(i))}
       </View>
 
-      {/* Método de pago */}
-      <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>
-        Método de Pago usado
-      </Text>
-
-      <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
-        <TouchableOpacity
-          onPress={() => setMethod('Tarjeta')}
-          style={{
-            paddingVertical: 10,
-            paddingHorizontal: 16,
-            borderRadius: 8,
-            borderWidth: 1,
-            borderColor: method === 'Tarjeta' ? '#4F46E5' : '#ccc',
-            backgroundColor: method === 'Tarjeta' ? '#E8E9FF' : '#fff',
-          }}
-        >
-          <Text style={{ fontWeight: 'bold' }}>Tarjeta</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => setMethod('Efectivo')}
-          style={{
-            paddingVertical: 10,
-            paddingHorizontal: 16,
-            borderRadius: 8,
-            borderWidth: 1,
-            borderColor: method === 'Efectivo' ? '#4F46E5' : '#ccc',
-            backgroundColor: method === 'Efectivo' ? '#E8E9FF' : '#fff',
-          }}
-        >
-          <Text style={{ fontWeight: 'bold' }}>Efectivo</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Comentarios */}
       <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>Comentarios</Text>
       <TextInput
         placeholder="Escribe tus comentarios aquí..."

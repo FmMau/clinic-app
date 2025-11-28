@@ -22,7 +22,6 @@ export default function PayScreen() {
 
   useEffect(() => {
     const startPayment = async () => {
-      // Si aún no está permitido o faltan datos, no hacemos nada
       if (!allowed || !paymentId || !user?.uid) {
         setLoading(false);
         return;
@@ -66,15 +65,12 @@ export default function PayScreen() {
     startPayment();
   }, [allowed, paymentId, user?.uid, router]);
 
-  // Primero: sigo cargando permisos
   if (guardLoading) {
     return <LoadingScreen message="Verificando permisos..." />;
   }
 
-  // Si no tiene rol de paciente, nada de pantalla de pago
   if (!allowed) return null;
 
-  // Luego: generando sesión o esperando URL
   if (loading || !checkoutUrl) {
     return <LoadingScreen message="Generando sesión de pago..." />;
   }
@@ -87,7 +83,6 @@ export default function PayScreen() {
       domStorageEnabled
       allowsBackForwardNavigationGestures={false}
       onNavigationStateChange={(navState) => {
-        // Cuando Stripe redirige al success de tu app:
         if (navState.url.includes('https://medaccess.com/stripe-success')) {
           try {
             const url = new URL(navState.url);

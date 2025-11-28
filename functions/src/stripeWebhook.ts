@@ -66,7 +66,6 @@ export const createCheckoutSession = onCall<CheckoutSessionData>(async (request)
   }
 });
 
-// --- webhook igual que ya lo tenías, pero usando `stripe` directamente ---
 const app = express();
 
 app.use(
@@ -78,13 +77,13 @@ app.use(
 );
 
 app.post('/stripe-webhook', async (req, res) => {
-  console.log('🚀 Webhook recibido');
+  console.log('Webhook recibido');
 
   const sig = req.headers['stripe-signature'];
   const raw = (req as any).rawBody;
 
   if (!sig || !raw) {
-    console.error('❌ No hay firma o rawBody');
+    console.error('No hay firma o rawBody');
     return res.status(400).send('Missing signature or raw body');
   }
 
@@ -92,9 +91,9 @@ app.post('/stripe-webhook', async (req, res) => {
 
   try {
     event = stripe.webhooks.constructEvent(raw, sig as string, webhookSecret);
-    console.log(`✅ Tipo de evento: ${event.type}`);
+    console.log(`Tipo de evento: ${event.type}`);
   } catch (err: any) {
-    console.error('❌ Error en constructEvent:', err.message);
+    console.error('Error en constructEvent:', err.message);
     return res.status(400).send(`Error verificando firma: ${err.message}`);
   }
 
@@ -102,10 +101,10 @@ app.post('/stripe-webhook', async (req, res) => {
     const session = event.data.object as Stripe.Checkout.Session;
     const paymentId = session?.metadata?.paymentId;
 
-    console.log('📦 Metadata recibida:', session.metadata);
+    console.log('Metadata recibida:', session.metadata);
 
     if (!paymentId) {
-      console.error('❌ paymentId faltante');
+      console.error('paymentId faltante');
       return res.status(400).send('paymentId faltante en metadata');
     }
 
@@ -115,15 +114,15 @@ app.post('/stripe-webhook', async (req, res) => {
       const snap = await ref.get();
 
       if (!snap.exists) {
-        console.error(`❌ Documento no encontrado: payments/${paymentId}`);
+        console.error(`Documento no encontrado: payments/${paymentId}`);
         return res.status(404).send('Documento no encontrado');
       }
 
       await ref.update({ status: 'pagado' });
-      console.log(`✅ Estado actualizado a "pagado" para ${paymentId}`);
+      console.log(`Estado actualizado a "pagado" para ${paymentId}`);
       return res.status(200).json({ received: true });
     } catch (err) {
-      console.error('❌ Error al actualizar Firestore:', err);
+      console.error('Error al actualizar Firestore:', err);
       return res.status(500).send('Error al actualizar Firestore');
     }
   }

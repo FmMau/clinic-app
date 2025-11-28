@@ -3,7 +3,6 @@ import React from 'react';
 import { Alert } from 'react-native';
 import RegisterScreen from '../app/auth/register';
 
-// Mocks Firebase config (usa el mismo alias que en el componente)
 jest.mock('@/lib/firebase/firebaseConfig', () => ({
   auth: {} as any,
   db: {} as any,
@@ -120,7 +119,7 @@ describe('RegisterScreen', () => {
 
     await waitFor(() => {
       expect(mockCreateUserWithEmailAndPassword).toHaveBeenCalledWith(
-        expect.any(Object), // auth
+        expect.any(Object),
         'juan@test.com',
         '123456'
       );

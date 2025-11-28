@@ -49,7 +49,6 @@ export default function CreateAppointment() {
   const [doctorItems, setDoctorItems] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
 
-  // 👉 nuevo: cache de citas del doctor por día (para no hacer una query por día)
   const [takenByDate, setTakenByDate] = useState<Record<string, Date[]>>({});
 
   // Cargar lista de doctores una sola vez
@@ -82,7 +81,6 @@ export default function CreateAppointment() {
     return slots;
   };
 
-  // 👉 NUEVO: obtener TODAS las citas del doctor en los próximos 30 días en UNA sola query
   const precomputeAvailableDates = async (doctorUserId: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -101,7 +99,6 @@ export default function CreateAppointment() {
 
       const snap = await getDocs(qAppointments);
 
-      // Construimos un mapa: { 'YYYY-MM-DD': [Date, Date, ...] }
       const tempTakenByDate: Record<string, Date[]> = {};
 
       snap.docs.forEach((docSnap) => {
@@ -175,7 +172,6 @@ export default function CreateAppointment() {
     setAvailableSlots([]);
   }, [doctorId]);
 
-  // 👉 NUEVO: slots disponibles para un día usando el cache takenByDate (sin hacer queries)
   const fetchAvailableSlots = (date: Date) => {
     if (!doctorId) {
       setAvailableSlots([]);
@@ -208,7 +204,6 @@ export default function CreateAppointment() {
       setAvailableSlots([]);
       setSelectedSlot(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, doctorId, takenByDate]);
 
   if (guardLoading || !allowed) return null;
@@ -282,7 +277,6 @@ export default function CreateAppointment() {
 
       await addDoc(collection(db, 'appointments'), newAppointment);
 
-      // 🔔 Notificación push al doctor
       const expoPushToken = doctorData.expoPushToken;
       if (expoPushToken) {
         const hora = selectedSlot.toLocaleTimeString('es-MX', {
