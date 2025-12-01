@@ -29,6 +29,9 @@ const START_HOUR = 9;
 const END_HOUR = 17;
 const SLOT_DURATION_MINUTES = 30;
 
+const MIN_REASON_LENGTH = 5;
+const MAX_REASON_LENGTH = 200;
+
 export default function EditAppointment() {
   const { loading: guardLoading, allowed } = useRoleGuard(['paciente']);
   const { id } = useLocalSearchParams();
@@ -54,13 +57,19 @@ export default function EditAppointment() {
     const fetchDoctors = async () => {
       try {
         const snap = await getDocs(collection(db, 'doctors'));
-        const list = snap.docs.map((docSnap) => ({
-          label: `${docSnap.data().name} - ${docSnap.data().specialty}`,
-          value: docSnap.data().userId,
-        }));
+        const list = snap.docs
+          .map((docSnap) => ({
+            label: `${docSnap.data().name || 'Sin nombre'} - ${
+              docSnap.data().specialty || 'Sin especialidad'
+            }`,
+            value: docSnap.data().userId,
+          }))
+          .filter((item) => !!item.value); // Solo doctores con userId
+
         setDoctorItems(list);
       } catch (err) {
         console.error('Error obteniendo doctores:', err);
+        Alert.alert('Error', 'No se pudo cargar la lista de médicos.');
       }
     };
     fetchDoctors();
@@ -84,7 +93,7 @@ export default function EditAppointment() {
           setNewDate(dateObj);
           setSelectedSlot(dateObj);
           setNewReason(data.reason || '');
-          setDoctorId(data.doctorId);
+          setDoctorId(data.doctorId || '');
         } else {
           setAppointment(null);
         }
@@ -150,7 +159,7 @@ export default function EditAppointment() {
 
       setAvailableSlots(available);
 
-      // Si la fecha que estaba seleccionada ya no está disponible, la deseleccionamos
+      // Si el horario que estaba seleccionado ya no está disponible, lo deseleccionamos
       if (
         selectedSlot &&
         !available.some((s) => s.getTime() === selectedSlot.getTime())
@@ -161,6 +170,10 @@ export default function EditAppointment() {
       console.error('Error obteniendo horarios disponibles:', err);
       setAvailableSlots([]);
       setSelectedSlot(null);
+      Alert.alert(
+        'Error',
+        'No se pudieron cargar los horarios disponibles para este médico.'
+      );
     }
   };
 
@@ -176,8 +189,44 @@ export default function EditAppointment() {
   }, [newDate, doctorId]);
 
   const handleUpdate = async () => {
-    if (!appointmentId || !selectedSlot || !newReason.trim() || !doctorId) {
-      Alert.alert('Error', 'Completa todos los campos.');
+    if (!appointmentId || typeof appointmentId !== 'string') {
+      Alert.alert('Error', 'No se pudo identificar la cita a actualizar.');
+      return;
+    }
+
+    if (!doctorId) {
+      Alert.alert('Error', 'Selecciona un médico.');
+      return;
+    }
+
+    if (!newDate || !selectedSlot) {
+      Alert.alert(
+        'Error',
+        'Selecciona una fecha y un horario disponible para la cita.'
+      );
+      return;
+    }
+
+    const cleanedReason = newReason.trim();
+
+    if (!cleanedReason) {
+      Alert.alert('Error', 'Ingresa el motivo o tipo de consulta.');
+      return;
+    }
+
+    if (cleanedReason.length < MIN_REASON_LENGTH) {
+      Alert.alert(
+        'Error',
+        `El motivo debe tener al menos ${MIN_REASON_LENGTH} caracteres.`
+      );
+      return;
+    }
+
+    if (cleanedReason.length > MAX_REASON_LENGTH) {
+      Alert.alert(
+        'Error',
+        `El motivo no debe exceder los ${MAX_REASON_LENGTH} caracteres.`
+      );
       return;
     }
 
@@ -190,8 +239,9 @@ export default function EditAppointment() {
     try {
       setUpdating(true);
 
-      const appointmentRef = doc(db, 'appointments', String(appointmentId));
+      const appointmentRef = doc(db, 'appointments', appointmentId);
 
+      // Verificar que el doctor exista y obtener sus datos
       const doctorSnap = await getDocs(
         query(collection(db, 'doctors'), where('userId', '==', doctorId))
       );
@@ -201,14 +251,40 @@ export default function EditAppointment() {
         throw new Error('No se pudo obtener la información del doctor.');
       }
 
+      // Verificación extra de conflicto en el horario (por si alguien ya lo tomó)
+      const slotStart = new Date(selectedSlot);
+      const slotEnd = new Date(
+        selectedSlot.getTime() + SLOT_DURATION_MINUTES * 60 * 1000
+      );
+
+      const conflictQuery = query(
+        collection(db, 'appointments'),
+        where('doctorId', '==', doctorId),
+        where('date', '>=', Timestamp.fromDate(slotStart)),
+        where('date', '<', Timestamp.fromDate(slotEnd))
+      );
+
+      const conflictSnap = await getDocs(conflictQuery);
+      const hasConflict = conflictSnap.docs.some(
+        (docSnap) => docSnap.id !== appointmentId
+      );
+
+      if (hasConflict) {
+        Alert.alert(
+          'Horario no disponible',
+          'El horario seleccionado ya está ocupado. Elige otro horario.'
+        );
+        return;
+      }
+
       await updateDoc(appointmentRef, {
         doctorId,
-        doctor: doctorData.name,
-        specialty: doctorData.specialty,
-        location: doctorData.location,
+        doctor: doctorData.name || 'Médico',
+        specialty: doctorData.specialty || 'General',
+        location: doctorData.location || 'Ubicación no especificada',
         coordinates: doctorData.coordinates || null,
         date: Timestamp.fromDate(selectedSlot),
-        reason: newReason.trim(),
+        reason: cleanedReason,
         updatedAt: Timestamp.now(),
       });
 
@@ -231,6 +307,16 @@ export default function EditAppointment() {
     return <Text style={{ padding: 24 }}>Cita no encontrada</Text>;
   }
 
+  const marked =
+    newDate && !isNaN(newDate.getTime())
+      ? {
+          [newDate.toISOString().split('T')[0]]: {
+            selected: true,
+            selectedColor: '#5A5CFF',
+          },
+        }
+      : {};
+
   return (
     <FlatList
       contentContainerStyle={{ padding: 24, backgroundColor: '#fff' }}
@@ -251,6 +337,7 @@ export default function EditAppointment() {
             placeholder="Selecciona un médico"
             style={{ marginBottom: 24, borderColor: '#5A5CFF' }}
             dropDownContainerStyle={{ borderColor: '#5A5CFF' }}
+            disabled={updating}
           />
 
           <Text style={{ marginBottom: 8 }}>Selecciona una nueva fecha</Text>
@@ -259,16 +346,7 @@ export default function EditAppointment() {
               const [year, month, dayNum] = day.dateString.split('-').map(Number);
               setNewDate(new Date(year, month - 1, dayNum));
             }}
-            markedDates={
-              newDate
-                ? {
-                    [newDate.toISOString().split('T')[0]]: {
-                      selected: true,
-                      selectedColor: '#5A5CFF',
-                    },
-                  }
-                : {}
-            }
+            markedDates={marked}
             disableAllTouchEventsForDisabledDays
             style={{ marginBottom: 24 }}
           />
@@ -327,6 +405,8 @@ export default function EditAppointment() {
               placeholder="Ej: Consulta general"
               placeholderTextColor="#999"
               style={{ flex: 1, height: 48, color: '#000' }}
+              maxLength={MAX_REASON_LENGTH}
+              editable={!updating}
             />
           </View>
 

@@ -20,6 +20,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TextInputProps,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -30,6 +31,7 @@ export default function PatientProfileEdit() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [isDateModalVisible, setDateModalVisible] = useState(false);
   const router = useRouter();
 
@@ -70,28 +72,78 @@ export default function PatientProfileEdit() {
   const handleSave = async () => {
     const { email, phone, curp, birthdate } = data;
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const emailClean = (email || '').trim().toLowerCase();
+    const phoneClean = normalizePhone(phone || '');
+    const curpClean = (curp || '').toUpperCase().trim();
+    const nameClean = (data.name || '').trim();
+    const lastnameClean = (data.lastname || '').trim();
+
+    if (!nameClean) {
+      Alert.alert('Error', 'El nombre es obligatorio.');
+      return;
+    }
+
+    if (!lastnameClean) {
+      Alert.alert('Error', 'Los apellidos son obligatorios.');
+      return;
+    }
+
+    if (
+      !emailClean ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailClean)
+    ) {
       Alert.alert('Error', 'Correo electrónico no válido.');
       return;
     }
 
-    if (!phone || phone.length !== 10 || !/^\d+$/.test(phone)) {
-      Alert.alert('Error', 'Teléfono debe tener 10 dígitos numéricos.');
+    if (phoneClean.length !== 10) {
+      Alert.alert(
+        'Error',
+        'El teléfono debe tener exactamente 10 dígitos.'
+      );
       return;
     }
 
-    if (!curp || curp.length !== 18) {
-      Alert.alert('Error', 'La CURP debe tener 18 caracteres.');
+    if (!isValidCURP(curpClean)) {
+      Alert.alert('Error', 'La CURP no tiene un formato válido.');
       return;
     }
 
-    let birthdateToSave: Timestamp;
-    try {
-      const parsedDate = getValidDate(birthdate);
-      if (isNaN(parsedDate.getTime())) throw new Error('Fecha inválida');
-      birthdateToSave = Timestamp.fromDate(parsedDate);
-    } catch {
-      Alert.alert('Error', 'Fecha de nacimiento inválida');
+    const parsedDate = parseBirthdate(birthdate);
+    if (!parsedDate) {
+      Alert.alert(
+        'Error',
+        'Selecciona una fecha de nacimiento válida.'
+      );
+      return;
+    }
+
+    const today = new Date();
+    if (parsedDate > today) {
+      Alert.alert(
+        'Error',
+        'La fecha de nacimiento no puede ser futura.'
+      );
+      return;
+    }
+
+    const age =
+      today.getFullYear() -
+      parsedDate.getFullYear() -
+      (today <
+      new Date(
+        today.getFullYear(),
+        parsedDate.getMonth(),
+        parsedDate.getDate()
+      )
+        ? 1
+        : 0);
+
+    if (age < 0 || age > 120) {
+      Alert.alert(
+        'Error',
+        'La fecha de nacimiento no es coherente.'
+      );
       return;
     }
 
@@ -99,10 +151,17 @@ export default function PatientProfileEdit() {
       const uid = auth.currentUser?.uid;
       if (!uid) return;
 
+      setSaving(true);
+
       const docRef = doc(db, 'patients', uid);
       const updatedData = {
         ...data,
-        birthdate: birthdateToSave,
+        name: nameClean,
+        lastname: lastnameClean,
+        email: emailClean,
+        phone: phoneClean,
+        curp: curpClean,
+        birthdate: Timestamp.fromDate(parsedDate),
       };
 
       await updateDoc(docRef, updatedData);
@@ -111,6 +170,8 @@ export default function PatientProfileEdit() {
     } catch (err) {
       console.error(err);
       Alert.alert('Error', 'No se pudieron guardar los cambios');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -125,7 +186,10 @@ export default function PatientProfileEdit() {
   const handlePickFromCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permiso requerido', 'Se necesita acceso a la cámara');
+      Alert.alert(
+        'Permiso requerido',
+        'Se necesita acceso a la cámara'
+      );
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -138,9 +202,13 @@ export default function PatientProfileEdit() {
   };
 
   const handlePickFromGallery = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permission =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permiso requerido', 'Se necesita acceso a tu galería');
+      Alert.alert(
+        'Permiso requerido',
+        'Se necesita acceso a tu galería'
+      );
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -224,7 +292,10 @@ export default function PatientProfileEdit() {
           </Text>
         )}
         {data.photoURL && (
-          <TouchableOpacity onPress={handleDeletePhoto} style={{ marginTop: 8 }}>
+          <TouchableOpacity
+            onPress={handleDeletePhoto}
+            style={{ marginTop: 8 }}
+          >
             <Text style={{ fontSize: 13, color: '#f43f5e' }}>
               Eliminar foto de perfil
             </Text>
@@ -244,8 +315,15 @@ export default function PatientProfileEdit() {
         undefined,
         false // no editable
       )}
-      {renderField('Teléfono', data.phone, (val) =>
-        setData((prev: any) => ({ ...prev, phone: val }))
+      {renderField(
+        'Teléfono',
+        data.phone,
+        (val) =>
+          setData((prev: any) => ({ ...prev, phone: val })),
+        true,
+        false,
+        undefined,
+        { keyboardType: 'phone-pad', maxLength: 14 }
       )}
       {renderField('Dirección', data.address, (val) =>
         setData((prev: any) => ({ ...prev, address: val }))
@@ -259,7 +337,7 @@ export default function PatientProfileEdit() {
 
       {renderField(
         'Fecha de nacimiento',
-        formatDate(getValidDate(data.birthdate)),
+        formatDate(parseBirthdate(data.birthdate)),
         undefined,
         true,
         true,
@@ -269,7 +347,9 @@ export default function PatientProfileEdit() {
       <DateTimePickerModal
         isVisible={isDateModalVisible}
         mode="date"
-        date={getValidDate(data.birthdate)}
+        date={
+          parseBirthdate(data.birthdate) || getDefaultBirthdate()
+        }
         maximumDate={new Date()}
         onConfirm={(date) => {
           setData((prev: any) => ({ ...prev, birthdate: date }));
@@ -283,7 +363,14 @@ export default function PatientProfileEdit() {
       )}
 
       <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.editButton} onPress={handleSave}>
+        <TouchableOpacity
+          style={[
+            styles.editButton,
+            (uploading || saving) && { opacity: 0.6 },
+          ]}
+          onPress={handleSave}
+          disabled={uploading || saving}
+        >
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons
               name="checkmark-outline"
@@ -291,7 +378,9 @@ export default function PatientProfileEdit() {
               color="#fff"
               style={{ marginRight: 8 }}
             />
-            <Text style={styles.editButtonText}>Guardar cambios</Text>
+            <Text style={styles.editButtonText}>
+              {saving ? 'Guardando...' : 'Guardar cambios'}
+            </Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -305,7 +394,8 @@ function renderField(
   onChange?: (val: string) => void,
   editable: boolean = true,
   isDate: boolean = false,
-  onDatePress?: () => void
+  onDatePress?: () => void,
+  inputProps: TextInputProps = {}
 ) {
   return (
     <View style={styles.field}>
@@ -336,31 +426,63 @@ function renderField(
             styles.input,
             editable && { backgroundColor: '#fff', borderColor: '#ccc' },
           ]}
+          {...inputProps}
         />
       )}
     </View>
   );
 }
 
-function formatDate(value: any) {
+function formatDate(date?: Date | null): string {
+  if (!date || isNaN(date.getTime())) return '';
+
   try {
-    const date = getValidDate(value);
     return date.toLocaleDateString('es-MX', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
   } catch {
-    return 'Desconocida';
+    return '';
   }
 }
 
-function getValidDate(value: any): Date {
-  if (!value) return new Date();
+function parseBirthdate(value: any): Date | null {
+  if (!value) return null;
   if (value instanceof Date) return value;
-  if (typeof value === 'string') return new Date(value);
-  if (value?.seconds) return new Date(value.seconds * 1000);
-  return new Date();
+
+  if (typeof value === 'string') {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  if (value?.seconds) {
+    const d = new Date(value.seconds * 1000);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  return null;
+}
+
+function getDefaultBirthdate(): Date {
+  const today = new Date();
+  return new Date(
+    today.getFullYear() - 18,
+    today.getMonth(),
+    today.getDate()
+  );
+}
+
+function normalizePhone(value: string): string {
+  return (value || '').replace(/\D/g, '');
+}
+
+const CURP_REGEX = /^[A-Z]{4}\d{6}[HM][A-Z]{5}[0-9A-Z]\d$/;
+
+function isValidCURP(value: string): boolean {
+  if (!value) return false;
+  const curp = value.toUpperCase().trim();
+  return CURP_REGEX.test(curp);
 }
 
 const styles = StyleSheet.create({

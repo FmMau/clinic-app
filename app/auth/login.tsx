@@ -21,6 +21,8 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const isValidEmail = (value: string) => emailRegex.test(value.trim());
 
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
+
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -28,10 +30,10 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    const trimmedEmail = email.trim();
+    const normalizedEmail = normalizeEmail(email);
     const trimmedPassword = password.trim();
 
-    if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
+    if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
       Alert.alert('Error', 'Ingresa un correo válido');
       return;
     }
@@ -43,7 +45,7 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      await signIn(trimmedEmail, trimmedPassword);
+      await signIn(normalizedEmail, trimmedPassword);
       router.replace('/');
     } catch (error: any) {
       let message = 'Error al iniciar sesión';
@@ -57,6 +59,11 @@ export default function LoginScreen() {
         message = 'Correo o contraseña incorrectos';
       } else if (error.code === 'auth/invalid-email') {
         message = 'Correo inválido';
+      } else if (error.code === 'auth/too-many-requests') {
+        message =
+          'Demasiados intentos fallidos. Inténtalo de nuevo más tarde.';
+      } else if (error.code === 'auth/network-request-failed') {
+        message = 'Revisa tu conexión a internet e inténtalo de nuevo.';
       }
 
       Alert.alert('Error', message);
@@ -66,14 +73,19 @@ export default function LoginScreen() {
   };
 
   const handleResetPassword = () => {
-    const trimmedEmail = email.trim();
+    const normalizedEmail = normalizeEmail(email);
 
-    if (!trimmedEmail) {
+    if (!normalizedEmail) {
       Alert.alert('Error', 'Por favor, ingresa tu correo primero');
       return;
     }
 
-    resetPassword(trimmedEmail)
+    if (!isValidEmail(normalizedEmail)) {
+      Alert.alert('Error', 'Ingresa un correo válido para recuperar tu contraseña');
+      return;
+    }
+
+    resetPassword(normalizedEmail)
       .then(() => {
         Alert.alert(
           'Listo',
@@ -88,14 +100,20 @@ export default function LoginScreen() {
           message = 'Correo inválido';
         } else if (code === 'auth/user-not-found') {
           message = 'No existe una cuenta con ese correo';
+        } else if (code === 'auth/too-many-requests') {
+          message =
+            'Has solicitado demasiados correos de recuperación. Inténtalo más tarde.';
+        } else if (code === 'auth/network-request-failed') {
+          message = 'Revisa tu conexión a internet e inténtalo de nuevo.';
         }
 
         Alert.alert('Error', message);
       });
   };
 
-  const trimmedEmailForDisabled = email.trim();
-  const resetDisabled = !trimmedEmailForDisabled || !isValidEmail(trimmedEmailForDisabled);
+  const trimmedEmailForDisabled = normalizeEmail(email);
+  const resetDisabled =
+    !trimmedEmailForDisabled || !isValidEmail(trimmedEmailForDisabled);
 
   return (
     <KeyboardAvoidingView
@@ -141,6 +159,7 @@ export default function LoginScreen() {
             placeholder="Correo electrónico"
             placeholderTextColor="#999"
             autoCapitalize="none"
+            autoCorrect={false}
             keyboardType="email-address"
             autoComplete="email"
             textContentType="emailAddress"
@@ -247,7 +266,9 @@ export default function LoginScreen() {
 
           <TouchableOpacity
             onPress={() =>
-              Linking.openURL('mailto:soporte@medaccess.com?subject=Ayuda%20con%20el%20acceso')
+              Linking.openURL(
+                'mailto:soporte@medaccess.com?subject=Ayuda%20con%20el%20acceso'
+              )
             }
           >
             <FontAwesome6 name="envelope" size={24} color="#5A5CFF" />

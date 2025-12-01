@@ -1,3 +1,4 @@
+// app/auth/register-doctor.tsx
 import { auth, db } from '@/lib/firebase/firebaseConfig';
 import { FontAwesome6 } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -6,15 +7,15 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -22,9 +23,7 @@ const CURP_REGEX = /^[A-Z]{4}\d{6}[HM][A-Z]{5}[0-9A-Z]\d$/;
 
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
 const isValidEmail = (value: string) => emailRegex.test(normalizeEmail(value));
-
-const normalizePhone = (value: string) =>
-  (value || '').replace(/\D/g, ''); // solo dígitos
+const normalizePhone = (value: string) => (value || '').replace(/\D/g, '');
 
 function parseBirthdate(value: string): Date | null {
   if (!value) return null;
@@ -48,7 +47,8 @@ function isValidAge(date: Date): boolean {
       ? 1
       : 0);
 
-  return age >= 0 && age <= 120;
+  // Para doctor podemos exigir al menos 18 años
+  return age >= 18 && age <= 120;
 }
 
 function isValidCURP(value: string): boolean {
@@ -56,7 +56,7 @@ function isValidCURP(value: string): boolean {
   return CURP_REGEX.test(value.trim().toUpperCase());
 }
 
-export default function RegisterScreen() {
+export default function RegisterDoctorScreen() {
   const router = useRouter();
   const [form, setForm] = useState({
     name: '',
@@ -65,11 +65,9 @@ export default function RegisterScreen() {
     password: '',
     confirm: '',
     phone: '',
+    specialty: '',
     birthdate: '',
     curp: '',
-    address: '',
-    gender: '',
-    allergies: '',
   });
   const [loading, setLoading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -85,11 +83,9 @@ export default function RegisterScreen() {
     const password = form.password;
     const confirm = form.confirm;
     const phoneDigits = normalizePhone(form.phone);
+    const specialty = form.specialty.trim();
     const birthdateRaw = form.birthdate;
     const curpClean = form.curp.trim().toUpperCase();
-    const address = form.address.trim();
-    const gender = form.gender;
-    const allergies = form.allergies.trim();
 
     // Nombre
     if (!name || name.length < 2) {
@@ -97,7 +93,6 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Apellido
     if (!lastname || lastname.length < 2) {
       Alert.alert('Error', 'El apellido es obligatorio (mínimo 2 caracteres).');
       return;
@@ -125,18 +120,31 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Fecha de nacimiento
-    const birthdateDate = parseBirthdate(birthdateRaw);
-    if (!birthdateDate) {
-      Alert.alert('Error', 'Selecciona una fecha de nacimiento válida');
-      return;
-    }
-    if (!isValidAge(birthdateDate)) {
+    // Especialidad
+    if (!specialty || specialty.length < 3) {
       Alert.alert(
         'Error',
-        'La fecha de nacimiento no es coherente. Verifica el año.'
+        'La especialidad es obligatoria (mínimo 3 caracteres).'
       );
       return;
+    }
+
+    // Fecha de nacimiento (opcional, pero si se llena, valida)
+    let birthdateIso: string | null = null;
+    if (birthdateRaw) {
+      const birthdateDate = parseBirthdate(birthdateRaw);
+      if (!birthdateDate) {
+        Alert.alert('Error', 'Selecciona una fecha de nacimiento válida');
+        return;
+      }
+      if (!isValidAge(birthdateDate)) {
+        Alert.alert(
+          'Error',
+          'La fecha de nacimiento no es coherente. Verifica el año.'
+        );
+        return;
+      }
+      birthdateIso = birthdateDate.toISOString();
     }
 
     // CURP (opcional, pero si la llena, que sea válida)
@@ -148,37 +156,22 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Dirección
-    if (!address || address.length < 5) {
-      Alert.alert(
-        'Error',
-        'La dirección es obligatoria (mínimo 5 caracteres).'
-      );
-      return;
-    }
-
-    // Género
-    if (!gender || !['Masculino', 'Femenino'].includes(gender)) {
-      Alert.alert('Error', 'Selecciona un sexo');
-      return;
-    }
-
     setLoading(true);
     try {
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCred.user.uid;
 
-      await setDoc(doc(db, 'patients', uid), {
+      await setDoc(doc(db, 'doctors', uid), {
         name,
         lastname,
         email,
-        role: 'paciente',
+        role: 'doctor',
         phone: phoneDigits,
-        birthdate: birthdateDate.toISOString(),
+        specialty,
+        birthdate: birthdateIso,
         curp: curpClean || null,
-        address,
-        gender,
-        allergies,
+        photoURL: null,
+        location: null,
         createdAt: serverTimestamp(),
       });
 
@@ -211,9 +204,9 @@ export default function RegisterScreen() {
     >
       <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 48 }}>
         <View style={{ alignItems: 'center', marginBottom: 24 }}>
-          <FontAwesome6 name="user-plus" size={48} color="#5A5CFF" />
+          <FontAwesome6 name="user-doctor" size={48} color="#5A5CFF" />
           <Text style={{ fontSize: 22, fontWeight: 'bold', marginTop: 8 }}>
-            Registro
+            Registro de doctor
           </Text>
         </View>
 
@@ -245,8 +238,16 @@ export default function RegisterScreen() {
             placeholder: 'Ingrese su teléfono',
             keyboardType: 'phone-pad',
           },
-          { label: 'CURP', key: 'curp', placeholder: 'Ingrese su CURP (opcional)' },
-          { label: 'Dirección', key: 'address', placeholder: 'Ingrese su dirección' },
+          {
+            label: 'Especialidad',
+            key: 'specialty',
+            placeholder: 'Ej. Medicina interna',
+          },
+          {
+            label: 'CURP (opcional)',
+            key: 'curp',
+            placeholder: 'Ingrese su CURP',
+          },
         ].map(({ label, key, keyboardType, secure, placeholder, autoCapitalize }) => (
           <View key={key} style={{ marginBottom: 12 }}>
             <Text style={{ marginBottom: 4 }}>{label}</Text>
@@ -303,61 +304,6 @@ export default function RegisterScreen() {
           )}
         </View>
 
-        {/* Sexo */}
-        <Text style={{ marginBottom: 4 }}>Sexo</Text>
-        <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-          {['Masculino', 'Femenino'].map((g) => (
-            <TouchableOpacity
-              key={g}
-              onPress={() => handleChange('gender', g)}
-              style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}
-            >
-              <View
-                style={{
-                  height: 16,
-                  width: 16,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: '#5A5CFF',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  marginRight: 6,
-                }}
-              >
-                {form.gender === g && (
-                  <View
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 5,
-                      backgroundColor: '#5A5CFF',
-                    }}
-                  />
-                )}
-              </View>
-              <Text>{g}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Alergias */}
-        <View style={{ marginBottom: 24 }}>
-          <Text style={{ marginBottom: 4 }}>Alergias (opcional)</Text>
-          <TextInput
-            value={form.allergies}
-            onChangeText={(value) => handleChange('allergies', value)}
-            placeholder="Ingrese alergias si hay"
-            placeholderTextColor="#999"
-            style={{
-              backgroundColor: '#F5F5F5',
-              borderRadius: 8,
-              padding: 12,
-              borderWidth: 1,
-              borderColor: '#E0E0E0',
-            }}
-          />
-        </View>
-
         <Pressable
           onPress={handleRegister}
           disabled={loading}
@@ -366,14 +312,14 @@ export default function RegisterScreen() {
             borderRadius: 8,
             paddingVertical: 14,
             alignItems: 'center',
+            marginTop: 8,
           }}
         >
           <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
-            {loading ? 'Registrando...' : 'Registrar'}
+            {loading ? 'Registrando...' : 'Registrar doctor'}
           </Text>
         </Pressable>
 
-        {/* Ir a login */}
         <TouchableOpacity onPress={() => router.replace('/auth/login')}>
           <Text
             style={{
@@ -385,26 +331,6 @@ export default function RegisterScreen() {
             }}
           >
             ¿Ya tienes cuenta? Inicia sesión
-          </Text>
-        </TouchableOpacity>
-
-        {/* Ir a registro de doctor */}
-        <TouchableOpacity
-          onPress={() => router.push('/auth/register-doctor')}
-        >
-          <Text
-            style={{
-              marginTop: 10,
-              textAlign: 'center',
-              color: '#111827',
-              fontWeight: '500',
-              fontSize: 14,
-            }}
-          >
-            ¿Eres doctor?{' '}
-            <Text style={{ color: '#5A5CFF' }}>
-              Regístrate como doctor
-            </Text>
           </Text>
         </TouchableOpacity>
       </ScrollView>

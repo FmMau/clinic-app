@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   Timestamp,
+  updateDoc,
 } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -35,15 +36,30 @@ type MedicalRecordInput = {
   createdAt: Timestamp;
 };
 
+const MIN_DIAGNOSIS_LENGTH = 5;
+const MAX_DIAGNOSIS_LENGTH = 2000;
+const MAX_MEDICATIONS_LENGTH = 2000;
+const MAX_INSTRUCTIONS_LENGTH = 2000;
+
 export default function ConsultationDetail() {
-  const params = useLocalSearchParams<{ id?: string | string[] }>(); // ID del paciente
+  const params = useLocalSearchParams<{
+    patientId?: string | string[];
+    appointmentId?: string | string[];
+  }>();
+
   const router = useRouter();
 
   const patientId = useMemo(() => {
-    const value = params.id;
+    const value = params.patientId;
     if (Array.isArray(value)) return value[0];
     return value as string | undefined;
-  }, [params.id]);
+  }, [params.patientId]);
+
+  const appointmentId = useMemo(() => {
+    const value = params.appointmentId;
+    if (Array.isArray(value)) return value[0];
+    return value as string | undefined;
+  }, [params.appointmentId]);
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,23 +106,84 @@ export default function ConsultationDetail() {
       return;
     }
 
-    if (!diagnosis.trim()) {
+    if (!patient) {
+      Alert.alert(
+        'Error',
+        'No se encontró la información del paciente. Regresa e intenta de nuevo.'
+      );
+      return;
+    }
+
+    const diagnosisClean = diagnosis.trim();
+    const medicationsClean = medications.trim();
+    const instructionsClean = instructions.trim();
+
+    if (!diagnosisClean) {
       Alert.alert('Error', 'El diagnóstico es obligatorio.');
+      return;
+    }
+
+    if (diagnosisClean.length < MIN_DIAGNOSIS_LENGTH) {
+      Alert.alert(
+        'Error',
+        `El diagnóstico debe tener al menos ${MIN_DIAGNOSIS_LENGTH} caracteres.`
+      );
+      return;
+    }
+
+    if (diagnosisClean.length > MAX_DIAGNOSIS_LENGTH) {
+      Alert.alert(
+        'Error',
+        `El diagnóstico no debe exceder los ${MAX_DIAGNOSIS_LENGTH} caracteres.`
+      );
+      return;
+    }
+
+    if (medicationsClean.length > MAX_MEDICATIONS_LENGTH) {
+      Alert.alert(
+        'Error',
+        `La lista de medicamentos no debe exceder los ${MAX_MEDICATIONS_LENGTH} caracteres.`
+      );
+      return;
+    }
+
+    if (instructionsClean.length > MAX_INSTRUCTIONS_LENGTH) {
+      Alert.alert(
+        'Error',
+        `Las instrucciones no deben exceder los ${MAX_INSTRUCTIONS_LENGTH} caracteres.`
+      );
       return;
     }
 
     const record: MedicalRecordInput = {
       patientId,
-      diagnosis: diagnosis.trim(),
-      medications: medications.trim(),
-      instructions: instructions.trim(),
+      diagnosis: diagnosisClean,
+      medications: medicationsClean,
+      instructions: instructionsClean,
       doctorId,
       createdAt: Timestamp.now(),
     };
 
     try {
       setSaving(true);
+
       await addDoc(collection(db, 'medicalRecords'), record);
+
+      if (appointmentId) {
+        try {
+          const appointmentRef = doc(db, 'appointments', appointmentId);
+          await updateDoc(appointmentRef, {
+            status: 'completada',
+            updatedAt: Timestamp.now(),
+          });
+        } catch (err) {
+          console.error(
+            'Error actualizando estado de la cita a completada:',
+            err
+          );
+        }
+      }
+
       Alert.alert('Diagnóstico guardado', 'Redirigiendo a creación de pago...', [
         {
           text: 'OK',
@@ -143,7 +220,8 @@ export default function ConsultationDetail() {
     );
   }
 
-  const fullName = `${patient.name || ''} ${patient.lastname || ''}`.trim() || 'Paciente';
+  const fullName =
+    `${patient.name || ''} ${patient.lastname || ''}`.trim() || 'Paciente';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ gap: 16 }}>
@@ -179,6 +257,7 @@ export default function ConsultationDetail() {
           multiline
           value={diagnosis}
           onChangeText={setDiagnosis}
+          maxLength={MAX_DIAGNOSIS_LENGTH}
         />
 
         <Text style={styles.inputLabel}>Medicamentos</Text>
@@ -188,6 +267,7 @@ export default function ConsultationDetail() {
           multiline
           value={medications}
           onChangeText={setMedications}
+          maxLength={MAX_MEDICATIONS_LENGTH}
         />
 
         <Text style={styles.inputLabel}>Instrucciones</Text>
@@ -197,6 +277,7 @@ export default function ConsultationDetail() {
           multiline
           value={instructions}
           onChangeText={setInstructions}
+          maxLength={MAX_INSTRUCTIONS_LENGTH}
         />
       </View>
 

@@ -28,6 +28,9 @@ const START_HOUR = 9;
 const END_HOUR = 17;
 const SLOT_DURATION_MINUTES = 30;
 
+const MIN_REASON_LENGTH = 5;
+const MAX_REASON_LENGTH = 200;
+
 function dateToYMD(date: Date): string {
   return date.toISOString().split('T')[0];
 }
@@ -57,12 +60,16 @@ export default function CreateAppointment() {
       try {
         const snap = await getDocs(collection(db, 'doctors'));
         const list = snap.docs.map((docSnap) => ({
-          label: `${docSnap.data().name} - ${docSnap.data().specialty}`,
+          label: `${docSnap.data().name || 'Sin nombre'} - ${
+            docSnap.data().specialty || 'Sin especialidad'
+          }`,
           value: docSnap.data().userId,
-        }));
+        })).filter((item) => !!item.value); // solo doctores con userId
+
         setDoctorItems(list);
       } catch (err) {
         console.error('Error al obtener doctores:', err);
+        Alert.alert('Error', 'No se pudo cargar la lista de doctores.');
       }
     };
     fetchDoctors();
@@ -155,6 +162,10 @@ export default function CreateAppointment() {
       setAvailableDates([]);
       setMarkedDates({});
       setTakenByDate({});
+      Alert.alert(
+        'Error',
+        'No se pudieron calcular las fechas disponibles para este médico.'
+      );
     }
   };
 
@@ -213,25 +224,61 @@ export default function CreateAppointment() {
     title: string,
     body: string
   ) => {
-    await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Accept-Encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: expoPushToken,
-        sound: 'default',
-        title,
-        body,
-      }),
-    });
+    try {
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Accept-Encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: expoPushToken,
+          sound: 'default',
+          title,
+          body,
+        }),
+      });
+    } catch (err) {
+      console.error('Error enviando notificación push:', err);
+      // No bloqueamos la cita por fallo de notificación
+    }
   };
 
   const handleSubmit = async () => {
-    if (!selectedSlot || !reason.trim() || !doctorId) {
-      Alert.alert('Error', 'Completa todos los campos, incluyendo fecha y horario.');
+    const cleanedReason = reason.trim();
+
+    if (!doctorId) {
+      Alert.alert('Error', 'Selecciona un médico.');
+      return;
+    }
+
+    if (!selectedSlot) {
+      Alert.alert(
+        'Error',
+        'Selecciona una fecha y un horario disponible para la cita.'
+      );
+      return;
+    }
+
+    if (!cleanedReason) {
+      Alert.alert('Error', 'Ingresa el motivo o tipo de consulta.');
+      return;
+    }
+
+    if (cleanedReason.length < MIN_REASON_LENGTH) {
+      Alert.alert(
+        'Error',
+        `El motivo debe tener al menos ${MIN_REASON_LENGTH} caracteres.`
+      );
+      return;
+    }
+
+    if (cleanedReason.length > MAX_REASON_LENGTH) {
+      Alert.alert(
+        'Error',
+        `El motivo no debe exceder los ${MAX_REASON_LENGTH} caracteres.`
+      );
       return;
     }
 
@@ -242,7 +289,8 @@ export default function CreateAppointment() {
     }
 
     const uid = auth.currentUser?.uid;
-    const patientName = auth.currentUser?.displayName || 'Paciente';
+    const patientName =
+      auth.currentUser?.displayName?.trim() || 'Paciente';
 
     if (!uid) {
       Alert.alert('Error', 'Sesión no válida.');
@@ -251,6 +299,7 @@ export default function CreateAppointment() {
 
     setLoading(true);
     try {
+      // Verificar que el doctor exista y obtener sus datos
       const doctorSnap = await getDocs(
         query(collection(db, 'doctors'), where('userId', '==', doctorId))
       );
@@ -259,6 +308,28 @@ export default function CreateAppointment() {
 
       if (!doctorData) {
         throw new Error('No se pudo obtener la información del doctor.');
+      }
+
+      // Verificación extra de conflicto en el horario (por si alguien se metió en medio)
+      const slotStart = new Date(selectedSlot);
+      const slotEnd = new Date(
+        selectedSlot.getTime() + SLOT_DURATION_MINUTES * 60 * 1000
+      );
+
+      const conflictQuery = query(
+        collection(db, 'appointments'),
+        where('doctorId', '==', doctorId),
+        where('date', '>=', Timestamp.fromDate(slotStart)),
+        where('date', '<', Timestamp.fromDate(slotEnd))
+      );
+
+      const conflictSnap = await getDocs(conflictQuery);
+      if (!conflictSnap.empty) {
+        Alert.alert(
+          'Horario no disponible',
+          'El horario seleccionado acaba de ser ocupado. Elige otro horario.'
+        );
+        return;
       }
 
       const newAppointment = {
@@ -270,7 +341,7 @@ export default function CreateAppointment() {
         location: doctorData.location || 'Ubicación no especificada',
         coordinates: doctorData.coordinates || null,
         date: Timestamp.fromDate(selectedSlot),
-        reason,
+        reason: cleanedReason,
         status: 'pendiente',
         createdAt: Timestamp.now(),
       };
@@ -331,6 +402,7 @@ export default function CreateAppointment() {
               placeholder="Selecciona un médico"
               style={{ marginBottom: 24, borderColor: '#5A5CFF' }}
               dropDownContainerStyle={{ borderColor: '#5A5CFF' }}
+              disabled={loading}
             />
 
             <Text style={{ marginBottom: 8 }}>Selecciona una fecha</Text>
@@ -358,6 +430,7 @@ export default function CreateAppointment() {
         renderItem={({ item }) => (
           <TouchableOpacity
             onPress={() => setSelectedSlot(item)}
+            disabled={loading}
             style={{
               padding: 12,
               borderWidth: 1,
@@ -406,6 +479,8 @@ export default function CreateAppointment() {
                 placeholder="Ej: Consulta general"
                 placeholderTextColor="#999"
                 style={{ flex: 1, height: 48, color: '#000' }}
+                maxLength={MAX_REASON_LENGTH}
+                editable={!loading}
               />
             </View>
 

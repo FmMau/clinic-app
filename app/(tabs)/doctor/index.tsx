@@ -12,6 +12,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -81,15 +82,18 @@ export default function DoctorDashboard() {
         )
       );
 
-      setAppointments(
-        appointmentsSnap.docs.map(
+      // Ordenamos por hora ascendente
+      const dayAppointments = appointmentsSnap.docs
+        .map(
           (doc) =>
             ({
               id: doc.id,
               ...doc.data(),
             } as Appointment)
         )
-      );
+        .sort((a, b) => a.date.toDate().getTime() - b.date.toDate().getTime());
+
+      setAppointments(dayAppointments);
     } catch (e) {
       console.error('Error cargando dashboard del doctor', e);
       setError('Ocurrió un error al cargar la información.');
@@ -136,7 +140,7 @@ export default function DoctorDashboard() {
     [patients]
   );
 
-  // Pequeñas métricas del día
+  // Métricas del día (con TODAS las citas)
   const totalToday = appointments.length;
   const pendingToday = appointments.filter(
     (a) => a.status?.toLowerCase() === 'pendiente'
@@ -145,8 +149,24 @@ export default function DoctorDashboard() {
     (a) => a.status?.toLowerCase() === 'completada'
   ).length;
 
+  // Citas que se muestran en el listado: solo pendientes
+  const pendingAppointments = useMemo(
+    () =>
+      appointments.filter(
+        (a) => a.status?.toLowerCase() === 'pendiente'
+      ),
+    [appointments]
+  );
+
   const handleOpenAppointment = (appointment: Appointment) => {
-    // Puedes ajustar la ruta/params según tu pantalla de consulta
+    if (!appointment.patientId) {
+      Alert.alert(
+        'Error',
+        'Esta cita no tiene un paciente asociado correctamente.'
+      );
+      return;
+    }
+
     router.push({
       pathname: '/(tabs)/doctor/consultation',
       params: {
@@ -175,13 +195,15 @@ export default function DoctorDashboard() {
         </View>
       )}
 
-      <Section icon="calendar-outline" title="Citas del día">
+      <Section icon="calendar-outline" title="Citas pendientes de hoy">
         {loading ? (
           <ActivityIndicator size="large" color="#5A5CFF" />
-        ) : appointments.length === 0 ? (
-          <Text style={{ color: '#999' }}>No hay citas agendadas para hoy.</Text>
+        ) : pendingAppointments.length === 0 ? (
+          <Text style={{ color: '#999' }}>
+            No hay citas pendientes para hoy.
+          </Text>
         ) : (
-          appointments.map((a) => {
+          pendingAppointments.map((a) => {
             const dateObj = a.date.toDate();
             const timeStr = dateObj.toLocaleTimeString('es-MX', {
               hour: '2-digit',

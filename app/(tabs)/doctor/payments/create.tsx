@@ -44,6 +44,8 @@ type PaymentPayload = {
   comments: string;
 };
 
+const MAX_AMOUNT = 100000; // límite razonable para evitar errores tipo 999999999
+
 export default function CreatePayment() {
   const router = useRouter();
   const params = useLocalSearchParams<{ patientId?: string | string[] }>();
@@ -76,6 +78,8 @@ export default function CreatePayment() {
         const doctorSnap = await getDoc(doc(db, 'doctors', uid));
         if (doctorSnap.exists()) {
           setDoctorProfile(doctorSnap.data() as DoctorProfile);
+        } else {
+          setDoctorProfile(null);
         }
 
         // Info básica del paciente (opcional, para mostrar nombre)
@@ -83,6 +87,8 @@ export default function CreatePayment() {
           const patientSnap = await getDoc(doc(db, 'patients', patientId));
           if (patientSnap.exists()) {
             setPatientInfo(patientSnap.data() as PatientInfo);
+          } else {
+            setPatientInfo(null);
           }
         }
       } catch (e) {
@@ -96,25 +102,52 @@ export default function CreatePayment() {
     fetchInitialData();
   }, [patientId, router]);
 
-  const validateAmount = (value: string) => {
-    // Permitir vacío mientras se escribe
-    if (!value.trim()) return true;
-    // Número positivo, hasta 2 decimales
-    return /^\d+(\.\d{1,2})?$/.test(value);
+  const parseAmount = (value: string): number | null => {
+    const normalized = value.replace(',', '.').trim();
+
+    if (!normalized) return null;
+
+    // Solo números con opcional punto y hasta 2 decimales
+    if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
+      return null;
+    }
+
+    const num = Number(normalized);
+    if (!Number.isFinite(num)) return null;
+
+    return num;
   };
 
   const handleSubmit = async () => {
-    if (!patientId) {
+    const normalizedPatientId = (patientId || '').trim();
+
+    if (!normalizedPatientId) {
       Alert.alert('Error', 'Falta el paciente asociado al pago.');
       return;
     }
 
-    if (!amount || !concept) {
-      Alert.alert('Error', 'Completa todos los campos obligatorios.');
+    const conceptClean = (concept || '').trim();
+    if (!conceptClean) {
+      Alert.alert('Error', 'El concepto es obligatorio.');
+      return;
+    }
+    if (conceptClean.length < 3) {
+      Alert.alert(
+        'Error',
+        'El concepto debe tener al menos 3 caracteres.'
+      );
+      return;
+    }
+    if (conceptClean.length > 120) {
+      Alert.alert(
+        'Error',
+        'El concepto no debe exceder 120 caracteres.'
+      );
       return;
     }
 
-    if (!validateAmount(amount)) {
+    const amountNumber = parseAmount(amount);
+    if (amountNumber === null) {
       Alert.alert(
         'Error',
         'Monto inválido. Usa solo números y hasta 2 decimales (ej. 500 o 500.50).'
@@ -122,9 +155,16 @@ export default function CreatePayment() {
       return;
     }
 
-    const amountNumber = parseFloat(amount);
-    if (isNaN(amountNumber) || amountNumber <= 0) {
+    if (amountNumber <= 0) {
       Alert.alert('Error', 'El monto debe ser mayor a 0.');
+      return;
+    }
+
+    if (amountNumber > MAX_AMOUNT) {
+      Alert.alert(
+        'Error',
+        `El monto no puede ser mayor a ${MAX_AMOUNT.toLocaleString('es-MX')}.`
+      );
       return;
     }
 
@@ -134,15 +174,22 @@ export default function CreatePayment() {
       return;
     }
 
-    const doctorName = doctorProfile?.name || 'Dr. Desconocido';
+    const doctorNameClean = (doctorProfile?.name || '').trim();
+    if (!doctorProfile || !doctorNameClean) {
+      Alert.alert(
+        'Error',
+        'Tu perfil de doctor no está completo. Agrega tu nombre antes de crear pagos.'
+      );
+      return;
+    }
 
     const payload: PaymentPayload = {
       amount: amountNumber,
-      concept: concept.trim(),
-      patientId,
-      patientName: patientInfo?.name || undefined, // opcional
+      concept: conceptClean,
+      patientId: normalizedPatientId,
+      patientName: patientInfo?.name?.trim() || undefined, // opcional
       doctorId: uid,
-      doctorName,
+      doctorName: doctorNameClean,
       specialty: doctorProfile?.specialty || '',
       status: 'pendiente',
       createdAt: serverTimestamp(),
@@ -201,7 +248,7 @@ export default function CreatePayment() {
       )}
       <FormField
         label="Nombre del Doctor"
-        value={doctorProfile?.name || 'Cargando...'}
+        value={doctorProfile?.name || 'Sin nombre registrado'}
         editable={false}
       />
       <FormField
@@ -219,8 +266,8 @@ export default function CreatePayment() {
         label="Monto"
         value={amount}
         onChangeText={(text) => {
-          // Permitimos escribir y validamos al guardar
-          setAmount(text.replace(',', '.')); // por si el usuario pone coma
+          // Permitimos escribir y normalizamos comas a puntos
+          setAmount(text.replace(',', '.'));
         }}
         placeholder="500.00"
         keyboardType="decimal-pad"

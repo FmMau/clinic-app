@@ -10,7 +10,7 @@ import { doc, getDoc, Timestamp, updateDoc } from 'firebase/firestore';
 import {
   getDownloadURL,
   ref,
-  uploadBytes
+  uploadBytes,
 } from 'firebase/storage';
 import { useEffect, useState } from 'react';
 import {
@@ -39,6 +39,39 @@ type DoctorProfile = {
   [key: string]: any;
 };
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
+const isValidEmail = (value: string) => emailRegex.test(normalizeEmail(value));
+const normalizePhone = (value: string) =>
+  (value || '').replace(/\D/g, '');
+
+function parseBirthdate(value: string): Date | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function isValidAge(date: Date): boolean {
+  const today = new Date();
+  if (date > today) return false;
+
+  const age =
+    today.getFullYear() -
+    date.getFullYear() -
+    (today <
+    new Date(
+      today.getFullYear(),
+      date.getMonth(),
+      date.getDate()
+    )
+      ? 1
+      : 0);
+
+  // Para doctor: mínimo 18 años
+  return age >= 18 && age <= 120;
+}
+
 export default function DoctorProfileEdit() {
   const { loading: guardLoading, allowed } = useRoleGuard(['doctor']);
   const [data, setData] = useState<DoctorProfile | null>(null);
@@ -53,7 +86,10 @@ export default function DoctorProfileEdit() {
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
-    if (!uid || !allowed) return;
+    if (!uid || !allowed) {
+      setLoading(false);
+      return;
+    }
 
     const fetchProfile = async () => {
       try {
@@ -117,15 +153,31 @@ export default function DoctorProfileEdit() {
   if (!data) return <Text style={styles.status}>Perfil no encontrado</Text>;
 
   const handleSave = async () => {
-    const { email, phone } = data;
+    const nameClean = (data.name || '').trim();
+    const emailClean = normalizeEmail(data.email || '');
+    const specialtyClean = (data.specialty || '').trim();
+    const phoneDigits = normalizePhone(data.phone || '');
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!nameClean || nameClean.length < 2) {
+      Alert.alert('Error', 'El nombre es obligatorio (mínimo 2 caracteres).');
+      return;
+    }
+
+    if (!emailClean || !isValidEmail(emailClean)) {
       Alert.alert('Error', 'Correo electrónico no válido.');
       return;
     }
 
-    if (!phone || phone.length !== 10 || !/^\d+$/.test(phone)) {
-      Alert.alert('Error', 'El teléfono debe tener 10 dígitos numéricos.');
+    if (!specialtyClean || specialtyClean.length < 3) {
+      Alert.alert(
+        'Error',
+        'La especialidad es obligatoria (mínimo 3 caracteres).'
+      );
+      return;
+    }
+
+    if (phoneDigits.length !== 10) {
+      Alert.alert('Error', 'El teléfono debe tener exactamente 10 dígitos numéricos.');
       return;
     }
 
@@ -149,9 +201,16 @@ export default function DoctorProfileEdit() {
     // Parsear fecha de nacimiento si se proporcionó
     let birthdateToSave: Timestamp | null = null;
     if (birthdateInput.trim()) {
-      const parsedDate = new Date(birthdateInput);
-      if (isNaN(parsedDate.getTime())) {
+      const parsedDate = parseBirthdate(birthdateInput.trim());
+      if (!parsedDate) {
         Alert.alert('Error', 'Fecha de nacimiento inválida. Usa el formato YYYY-MM-DD.');
+        return;
+      }
+      if (!isValidAge(parsedDate)) {
+        Alert.alert(
+          'Error',
+          'La fecha de nacimiento no es coherente. Verifica el año.'
+        );
         return;
       }
       birthdateToSave = Timestamp.fromDate(parsedDate);
@@ -165,6 +224,10 @@ export default function DoctorProfileEdit() {
 
       const updatedData: DoctorProfile = {
         ...data,
+        name: nameClean,
+        email: emailClean,
+        specialty: specialtyClean,
+        phone: phoneDigits,
         birthdate: birthdateToSave,
         location: coordinates || null,
       };
@@ -205,7 +268,10 @@ export default function DoctorProfileEdit() {
       Alert.alert('Permiso requerido', 'Se necesita acceso a la cámara.');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.7 });
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 0.7,
+    });
     if (!result.canceled && result.assets.length > 0) {
       await uploadImageToStorage(result.assets[0].uri);
     }
@@ -220,6 +286,7 @@ export default function DoctorProfileEdit() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.7,
+      allowsEditing: true,
     });
     if (!result.canceled && result.assets.length > 0) {
       await uploadImageToStorage(result.assets[0].uri);
@@ -239,7 +306,6 @@ export default function DoctorProfileEdit() {
       await uploadBytes(fileRef, blob);
       const url = await getDownloadURL(fileRef);
 
-      // Guardar en estado y en Firestore
       setData({ ...data, photoURL: url });
       await updateDoc(doc(db, 'doctors', uid), { photoURL: url });
     } catch (err) {
@@ -297,7 +363,7 @@ export default function DoctorProfileEdit() {
         <TextInput
           value={birthdateInput}
           onChangeText={setBirthdateInput}
-          placeholder="1990-05-21"
+          placeholder="1980-05-21"
           style={styles.input}
           autoCapitalize="none"
         />
