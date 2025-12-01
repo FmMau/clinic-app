@@ -43,6 +43,7 @@ const MAX_INSTRUCTIONS_LENGTH = 2000;
 
 export default function ConsultationDetail() {
   const params = useLocalSearchParams<{
+    id?: string | string[];
     patientId?: string | string[];
     appointmentId?: string | string[];
   }>();
@@ -50,15 +51,16 @@ export default function ConsultationDetail() {
   const router = useRouter();
 
   const patientId = useMemo(() => {
-    const value = params.patientId;
+    const value = params.patientId ?? params.id;
     if (Array.isArray(value)) return value[0];
     return value as string | undefined;
-  }, [params.patientId]);
+  }, [params.patientId, params.id]);
 
   const appointmentId = useMemo(() => {
     const value = params.appointmentId;
-    if (Array.isArray(value)) return value[0];
-    return value as string | undefined;
+    if (!value) return undefined;
+    if (Array.isArray(value)) return value[0] as string;
+    return String(value);
   }, [params.appointmentId]);
 
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -167,8 +169,10 @@ export default function ConsultationDetail() {
     try {
       setSaving(true);
 
+      // 1) Guardar diagnóstico
       await addDoc(collection(db, 'medicalRecords'), record);
 
+      // 2) Si venimos de una cita, marcarla como completada
       if (appointmentId) {
         try {
           const appointmentRef = doc(db, 'appointments', appointmentId);

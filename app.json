@@ -7,7 +7,7 @@
     "icon": "./assets/logo.png",
     "scheme": "MEDACCESS",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fmmau.clinic-app"

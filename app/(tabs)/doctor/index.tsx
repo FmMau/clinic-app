@@ -142,21 +142,33 @@ export default function DoctorDashboard() {
 
   // Métricas del día (con TODAS las citas)
   const totalToday = appointments.length;
-  const pendingToday = appointments.filter(
+
+  // Regla de "gracia" de 30 minutos
+  const now = new Date();
+  const THIRTY_MINUTES_MS = 30 * 60 * 1000;
+  const cutoffTime = now.getTime() - THIRTY_MINUTES_MS;
+
+  // Citas pendientes (solo status) para métricas si quieres verlo completo
+  const pendingTodayRaw = appointments.filter(
     (a) => a.status?.toLowerCase() === 'pendiente'
-  ).length;
+  );
+
   const doneToday = appointments.filter(
     (a) => a.status?.toLowerCase() === 'completada'
   ).length;
 
-  // Citas que se muestran en el listado: solo pendientes
-  const pendingAppointments = useMemo(
-    () =>
-      appointments.filter(
-        (a) => a.status?.toLowerCase() === 'pendiente'
-      ),
-    [appointments]
-  );
+  // Para la métrica mostramos las pendientes que siguen "vigentes"
+  const pendingToday = pendingTodayRaw.filter((a) => {
+    const time = a.date.toDate().getTime();
+    return time >= cutoffTime;
+  }).length;
+
+  // Citas que se muestran en el listado: solo pendientes y que no tengan más de 30 min vencidas
+  const pendingAppointments = appointments.filter((a) => {
+    if (a.status?.toLowerCase() !== 'pendiente') return false;
+    const time = a.date.toDate().getTime();
+    return time >= cutoffTime;
+  });
 
   const handleOpenAppointment = (appointment: Appointment) => {
     if (!appointment.patientId) {
@@ -170,8 +182,9 @@ export default function DoctorDashboard() {
     router.push({
       pathname: '/(tabs)/doctor/consultation',
       params: {
-        appointmentId: appointment.id,
+        id: appointment.patientId,
         patientId: appointment.patientId,
+        appointmentId: appointment.id,
       },
     });
   };
