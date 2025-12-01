@@ -26,7 +26,6 @@ export default function PatientDashboard() {
   useEffect(() => {
     if (!uid || !allowed) return;
 
-    // 🔹 Solo las 2 citas más recientes
     const unsubscribeAppointments = onSnapshot(
       query(
         collection(db, 'appointments'),
@@ -43,7 +42,6 @@ export default function PatientDashboard() {
       }
     );
 
-    // 🔹 Solo los 2 últimos registros médicos
     const unsubscribeRecords = onSnapshot(
       query(
         collection(db, 'medicalRecords'),
@@ -60,7 +58,6 @@ export default function PatientDashboard() {
       }
     );
 
-    // 🔹 Solo los 2 pagos más recientes
     const unsubscribePayments = onSnapshot(
       query(
         collection(db, 'payments'),
@@ -118,7 +115,7 @@ export default function PatientDashboard() {
         </Text>
       </TouchableOpacity>
 
-      <Section icon="calendar-outline" title="Próximas Citas">
+      <Section icon="calendar-outline" title="Ultimas Citas">
         {appointments.length === 0 ? (
           <Text style={{ color: '#999' }}>No tienes citas agendadas.</Text>
         ) : (
